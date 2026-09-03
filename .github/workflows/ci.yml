@@ -23,14 +23,18 @@ jobs:
       - name: Install development dependencies
         run: python -m pip install -e ".[dev]"
       - name: Ruff
-        run: ruff check src benchmark_comparison structure_comparison eda_brain_data/scripts tests scripts
+        run: ruff check src scripts tests
       - name: Compile
-        run: python -m compileall -q src benchmark_comparison structure_comparison eda_brain_data/scripts scripts tests
+        run: python -m compileall -q src scripts tests
       - name: Test
         run: pytest
       - name: Validate notebooks
-        run: python scripts/validate_notebooks.py
+        run: python scripts/quality/validate_notebooks.py
       - name: Validate Markdown links
-        run: python scripts/check_markdown_links.py
+        run: python scripts/quality/check_markdown_links.py
       - name: Check repository hygiene
-        run: python scripts/check_repo_hygiene.py
+        run: python scripts/quality/check_repo_hygiene.py
+      - name: Mock extraction smoke run
+        run: |
+          thesis-neuro --config configs/examples/mock.yaml mock-extract
+          thesis-neuro-benchmark validate-items --items-path examples/benchmark/mock_boolq.jsonl

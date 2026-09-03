@@ -1,0 +1,38 @@
+{
+  "gemma_2_2b": {
+    "model_id": "google/gemma-2-2b",
+    "scope_release": "gemma-scope-2b-pt-res-canonical",
+    "scope_width": "width_16k",
+    "token_layer": 4,
+    "layer_selection": [4, 8, 13, 17, 22, 25],
+    "feature_run_dir": "outputs/model-runs/gemma_2_2b",
+    "selected_features_path": "outputs/model-runs/gemma_2_2b/selected_features_for_alignment.jsonl",
+    "analysis_summary_path": "outputs/structure/gemma_2_2b/analysis_summary.json",
+    "brain_final_model_path": "outputs/structure/gemma_2_2b/all_layers/brain_final_model.npz",
+    "notes": "Expected external artifact layout; no model or result files are bundled."
+  },
+  "gemma_2_9b": {
+    "model_id": "google/gemma-2-9b",
+    "scope_release": "gemma-scope-9b-pt-res-canonical",
+    "scope_width": "width_16k",
+    "token_layer": 7,
+    "layer_selection": [7, 13, 21, 27, 36, 40],
+    "feature_run_dir": "outputs/model-runs/gemma_2_9b",
+    "selected_features_path": "outputs/model-runs/gemma_2_9b/selected_features_for_alignment.jsonl",
+    "analysis_summary_path": "outputs/structure/gemma_2_9b/analysis_summary.json",
+    "brain_final_model_path": "outputs/structure/gemma_2_9b/all_layers/brain_final_model.npz",
+    "notes": "Expected external artifact layout; no model or result files are bundled."
+  },
+  "llama_3_1_8b": {
+    "model_id": "meta-llama/Llama-3.1-8B",
+    "scope_release": "llama_scope_lxr_8x",
+    "scope_width": "8x",
+    "token_layer": 5,
+    "layer_selection": [5, 10, 16, 21, 27, 31],
+    "feature_run_dir": "outputs/model-runs/llama_3_1_8b",
+    "selected_features_path": "outputs/model-runs/llama_3_1_8b/selected_features_for_alignment.jsonl",
+    "analysis_summary_path": "outputs/structure/llama_3_1_8b/analysis_summary.json",
+    "brain_final_model_path": "outputs/structure/llama_3_1_8b/all_layers/brain_final_model.npz",
+    "notes": "Expected external artifact layout; no model or result files are bundled."
+  }
+}

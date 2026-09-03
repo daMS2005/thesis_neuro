@@ -1,0 +1,69 @@
+model:
+  base_model_id: google/gemma-2-2b
+  scope_release: gemma-scope-2b-pt-res-canonical
+  scope_width: width_16k
+  layer_selection: all
+
+dataset:
+  id: allenai/dolma
+  split: train
+  streaming: true
+  max_documents: 500
+  max_windows: 50000
+
+transcripts:
+  root_dir: data/transcripts
+  glob: "*/*_transcript.txt"
+  max_files: 10
+
+tokenization:
+  seq_len: 512
+  add_special_tokens: false
+
+latents:
+  token_top_k: 128
+  pooled_top_k: 128
+  top_n_logits: 10
+
+feature_selection:
+  top_by_peak: 96
+  top_by_total: 96
+  top_by_persistence: 96
+  top_by_sentence_pool: 96
+  final_top_per_layer: 192
+  top_examples_per_feature: 8
+
+alignment:
+  top_features_per_window: 64
+  top_windows_per_feature: 3
+  top_token_positions_per_feature_window: 16
+  top_token_alignments: 6
+  top_span_alignments: 6
+  methods:
+    - deletion_retokenize
+    - pad_sentence_mask
+    - delete_clause_retokenize
+
+analysis:
+  compute_distinctiveness: true
+  top_features_for_alignment: 64
+  top_features_for_correlation: 96
+  top_features_for_judge: 128
+  transcript_examples_per_feature: 4
+  dolma_contexts_per_feature: 6
+  correlated_features_per_feature: 6
+
+judge:
+  enabled: false
+  model: gpt-5-mini
+  timeout_seconds: 120
+  max_retries: 6
+  max_concurrency: 3
+
+output:
+  dir: outputs/full-extraction
+  write_manifest: true
+  write_summary: false
+
+run:
+  seed: 42

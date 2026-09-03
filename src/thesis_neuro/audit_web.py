@@ -28,15 +28,15 @@ from thesis_neuro.audit_data import (
     load_audit_bundle,
     resolve_audit_paths,
 )
-from thesis_neuro.paths import default_config_path, repository_root
+from thesis_neuro.paths import default_config_path, output_root, repository_root
 
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(prog="thesis-neuro-audit")
     parser.add_argument("--repo-root", default=None)
-    parser.add_argument("--analysis-dir", default="outputs/remote_experiment_l4_l8_l13_l17_l22_l25_rich_audit")
-    parser.add_argument("--transcript-dir", default="outputs/remote_experiment_l4_l8_l13_l17_l22_l25_rich_audit")
-    parser.add_argument("--dolma-dir", default="outputs/remote_experiment_l4_l8_l13_l17_l22_l25_rich_audit")
+    parser.add_argument("--analysis-dir", default="outputs/default-run")
+    parser.add_argument("--transcript-dir", default="outputs/default-run")
+    parser.add_argument("--dolma-dir", default="outputs/default-run")
     parser.add_argument(
         "--bundle",
         action="append",
@@ -447,11 +447,9 @@ def _probe_start_payload(state: AuditServerState, payload: dict[str, Any]) -> di
     if status["running"] or status["has_report"]:
         return status
 
-    probe_paths = _probe_paths(state.repo_root, bundle_state, script_id=script_id, layer=layer, feature_id=feature_id)
-    config_path = _probe_config_path(state.repo_root, bundle_state.bundle_id)
-    python_bin = state.repo_root / ".venv" / "bin" / "python"
-    if not python_bin.exists():
-        python_bin = Path(sys.executable)
+    probe_paths = _probe_paths(bundle_state, script_id=script_id, layer=layer, feature_id=feature_id)
+    config_path = default_config_path()
+    python_bin = Path(sys.executable)
     probe_paths["root"].mkdir(parents=True, exist_ok=True)
     command = [
         str(python_bin),
@@ -478,7 +476,6 @@ def _probe_start_payload(state: AuditServerState, payload: dict[str, Any]) -> di
         script_id,
     ]
     env = os.environ.copy()
-    env["PYTHONPATH"] = str(state.repo_root) + (os.pathsep + env["PYTHONPATH"] if env.get("PYTHONPATH") else "")
     with probe_paths["log_path"].open("ab") as handle:
         process = subprocess.Popen(  # noqa: S603
             command,
@@ -511,7 +508,7 @@ def _probe_status_for_feature(
     layer: int,
     feature_id: int,
 ) -> dict[str, Any]:
-    probe_paths = _probe_paths(state.repo_root, bundle_state, script_id=script_id, layer=layer, feature_id=feature_id)
+    probe_paths = _probe_paths(bundle_state, script_id=script_id, layer=layer, feature_id=feature_id)
     job_key = _probe_job_key(bundle_state.bundle_id, script_id, layer, feature_id)
     job = state.probe_jobs.get(job_key) or {}
     pid = int(job["pid"]) if job.get("pid") else None
@@ -550,7 +547,6 @@ def _probe_status_for_feature(
 
 
 def _probe_paths(
-    repo_root: Path,
     bundle_state: AuditBundleState,
     script_id: str | None,
     layer: int,
@@ -558,7 +554,7 @@ def _probe_paths(
 ) -> dict[str, Path]:
     script_segment = _slugify(script_id) if script_id else "all_scripts"
     root = (
-        repo_root
+        output_root()
         / "probe_runs"
         / bundle_state.bundle.paths.analysis_dir.name
         / script_segment
@@ -575,13 +571,6 @@ def _probe_paths(
         "rounds_path": root / "feature_probe_rounds.jsonl",
         "steering_path": root / "feature_probe_steering.jsonl",
     }
-
-
-def _probe_config_path(repo_root: Path, bundle_id: str) -> Path:
-    config_path = repo_root / "structure_comparison" / "probe_batches" / "all_layers_128" / "configs" / f"{bundle_id}.yaml"
-    if config_path.exists():
-        return config_path
-    return default_config_path()
 
 
 def _probe_job_key(bundle_id: str, script_id: str, layer: int, feature_id: int) -> str:

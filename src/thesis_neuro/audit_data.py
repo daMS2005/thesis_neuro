@@ -27,9 +27,9 @@ class AuditBundle:
 
 def resolve_audit_paths(
     repo_root: str | Path | None = None,
-    analysis_dir: str | Path = "outputs/remote_experiment_l4_l8_l13_l17_l22_l25",
-    transcript_dir: str | Path | None = "outputs/remote_experiment_l4_l8_l13_l17_l22_l25",
-    dolma_dir: str | Path | None = "outputs/remote_experiment_l4_l8_l13_l17_l22_l25",
+    analysis_dir: str | Path = "outputs/default-run",
+    transcript_dir: str | Path | None = "outputs/default-run",
+    dolma_dir: str | Path | None = "outputs/default-run",
 ) -> DashboardPaths:
     return resolve_dashboard_paths(
         repo_root=repo_root,

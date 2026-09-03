@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import json
-import os
 import tempfile
 import unittest
 from pathlib import Path
@@ -13,26 +12,23 @@ from unittest.mock import patch
 import numpy as np
 import pandas as pd
 
-from structure_comparison.workflow import (
-    BrainTargets,
+from structure_comparison.alignment import (
     assign_words_to_trs,
-    build_brain_design_matrix,
-    build_confounds_for_cleaning,
     build_token_to_word_index,
-    collapse_lagged_weights,
-    contiguous_block_groups,
     group_tokens_into_words,
     group_tokens_with_model_tokenizer,
-    load_brain_targets,
-    load_predictor_feature_keys,
     load_word_rows,
-    normalize_text,
-    resolve_transcript_paths,
-    run_grouped_ridge_cv,
     validate_tr_alignment,
-    validate_word_alignment,
+)
+from structure_comparison.artifacts import load_predictor_feature_keys
+from structure_comparison.brain import (
+    BrainTargets,
+    build_brain_design_matrix,
+    build_confounds_for_cleaning,
+    load_brain_targets,
     zscore_with_reference_mask,
 )
+from structure_comparison.modeling import collapse_lagged_weights, contiguous_block_groups, run_grouped_ridge_cv
 
 
 class _TokenizerStub:
@@ -59,7 +55,7 @@ class WorkflowTests(unittest.TestCase):
         transcript_text = "Alice was beginning to get very tired."
         tokens = ["Alice", "▁was", "▁beginning", "▁to", "▁get", "▁very", "▁tired", "."]
         tokenizer = _TokenizerStub(tokens)
-        with patch("structure_comparison._implementation.load_cached_tokenizer", return_value=tokenizer):
+        with patch("structure_comparison.alignment.load_cached_tokenizer", return_value=tokenizer):
             groups = group_tokens_with_model_tokenizer(model_id, tokens, transcript_text)
         self.assertEqual([group.text for group in groups], ["Alice", "was", "beginning", "to", "get", "very", "tired."])
 
@@ -68,12 +64,12 @@ class WorkflowTests(unittest.TestCase):
         transcript_text = "Alice was beginning to get very tired."
         tokens = ["Alice", "Ġwas", "Ġbeginning", "Ġto", "Ġget", "Ġvery", "Ġtired", "."]
         tokenizer = _TokenizerStub(tokens)
-        with patch("structure_comparison._implementation.load_cached_tokenizer", return_value=tokenizer):
+        with patch("structure_comparison.alignment.load_cached_tokenizer", return_value=tokenizer):
             groups = group_tokens_with_model_tokenizer(model_id, tokens, transcript_text)
         self.assertEqual([group.text for group in groups], ["Alice", "was", "beginning", "to", "get", "very", "tired."])
 
     def test_midpoint_word_to_tr_assignment_matches_bins(self) -> None:
-        from structure_comparison.workflow import TrBin, WordTiming
+        from structure_comparison.alignment import TrBin, WordTiming
 
         words = [
             WordTiming(word="Let's", start_s=0.0, end_s=1.2),
@@ -281,58 +277,6 @@ class WorkflowTests(unittest.TestCase):
             path.write_text("".join(json.dumps(row) + "\n" for row in rows), encoding="utf-8")
             keys = load_predictor_feature_keys(path, top_k=2)
         self.assertEqual(keys, ((4, 10), (13, 30)))
-
-    @unittest.skipUnless(os.getenv("THESIS_NEURO_RUN_INTEGRATION") == "1", "optional data integration test")
-    def test_real_shapessocial_token_word_alignment_if_artifacts_exist(self) -> None:
-        transcript_root = Path("eda_brain_data/datasets/data/transcripts")
-        remote_run_dir = Path("structure_comparison/remote_runs/remote_experiment_l8_l13_l22")
-        transcript_path = remote_run_dir / "transcript_paired_records.jsonl"
-        if not transcript_path.exists():
-            self.skipTest("Synced remote transcript artifacts are not available locally.")
-
-        transcript_paths = resolve_transcript_paths(transcript_root, "shapessocial")
-        transcript_text = transcript_paths.transcript_txt.read_text(encoding="utf-8").strip()
-        words = load_word_rows(transcript_paths.words_tsv)
-        by_index: dict[int, str] = {}
-        with transcript_path.open("r", encoding="utf-8") as handle:
-            for line in handle:
-                row = json.loads(line)
-                if int(row["layer"]) != 8:
-                    continue
-                if (row.get("provenance") or {}).get("stimulus_id") != "shapessocial":
-                    continue
-                by_index[int(row["window_start"]) + int(row["token_position"])] = row["token"]
-        tokens = [by_index[index] for index in sorted(by_index)]
-        groups = group_tokens_into_words(tokens)
-        validate_word_alignment(groups, words, transcript_text)
-        reconstructed = " ".join(word.word for word in words)
-        self.assertEqual(normalize_text(reconstructed), normalize_text(transcript_text))
-
-    @unittest.skipUnless(os.getenv("THESIS_NEURO_RUN_INTEGRATION") == "1", "optional data integration test")
-    def test_real_shapesphysical_token_word_alignment_if_artifacts_exist(self) -> None:
-        transcript_root = Path("eda_brain_data/datasets/data/transcripts")
-        remote_run_dir = Path("structure_comparison/remote_runs/remote_experiment_l8_l13_l22")
-        transcript_path = remote_run_dir / "transcript_paired_records.jsonl"
-        if not transcript_path.exists():
-            self.skipTest("Synced remote transcript artifacts are not available locally.")
-
-        transcript_paths = resolve_transcript_paths(transcript_root, "shapesphysical")
-        transcript_text = transcript_paths.transcript_txt.read_text(encoding="utf-8").strip()
-        words = load_word_rows(transcript_paths.words_tsv)
-        by_index: dict[int, str] = {}
-        with transcript_path.open("r", encoding="utf-8") as handle:
-            for line in handle:
-                row = json.loads(line)
-                if int(row["layer"]) != 8:
-                    continue
-                if (row.get("provenance") or {}).get("stimulus_id") != "shapesphysical":
-                    continue
-                by_index[int(row["window_start"]) + int(row["token_position"])] = row["token"]
-        tokens = [by_index[index] for index in sorted(by_index)]
-        groups = group_tokens_into_words(tokens)
-        validate_word_alignment(groups, words, transcript_text)
-        reconstructed = " ".join(word.word for word in words)
-        self.assertEqual(normalize_text(reconstructed), normalize_text(transcript_text))
 
 
 if __name__ == "__main__":

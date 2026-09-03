@@ -1,115 +1,31 @@
-# Secrets and machine-local configuration
+# Secrets and local configuration
 .env
 .env.*
 !.env.example
-config*.yaml
-!configs/**/*.yaml
 
-# Python environments and package artifacts
-.venv*/
-venv*/
-env*/
+# Python
+__pycache__/
+*.py[cod]
 *.egg-info/
 build/
 dist/
-__pycache__/
-*.py[cod]
-*.so
+.venv*/
+venv*/
 
-# Tooling, test, and editor state
+# Tooling and editor state
 .cache/
-.coverage
-.coverage.*
-.DS_Store
 .ipynb_checkpoints/
 .jupyter/
-.jupyter_local/
-.matplotlib/
 .mypy_cache/
-.nilearn_data/
 .pytest_cache/
 .ruff_cache/
 .vscode/
-htmlcov/
-*.bak
+.DS_Store
 *.log
-*.orig
-*.out
-*.err
-*.pid
-*.swp
-*.swo
-*.tmp
-nohup.out
 
-# Local recovery and archived research material
-.local-backups/
-archive/
-ops/
-paper_revision/
-paper_rework/
-docs/manuscript/
-/config.yaml.example
-/benchmark_comparison/examples/
-/eda_brain_data/.gitignore
-/eda_brain_data/environment.yml
-/eda_brain_data/methodology/
-/eda_brain_data/notebooks/04_roi_analysis.ipynb
-/eda_brain_data/requirements.txt
-/methodology/
-/notebooks/thesis_explainer_figures.ipynb
-/notebooks/thesis_results_draft.ipynb
-/src/thesis_results/
-/structure_comparison/test_workflow.py
-/thesis_methodology/
-
-# Data, derivatives, atlases, and manifests
+# Research data and generated outputs are never committed
 data/
-eda_brain_data/assets/
-eda_brain_data/capstone_jobs/
-eda_brain_data/datasets/
-eda_brain_data/reports/
-eda_brain_data/tmp/
-structure_comparison/brain_targets/
-structure_comparison/capstone_final_run_snapshot/
-structure_comparison/probe_batches/
-structure_comparison/remote_runs/
-structure_comparison/tmp_*/
-
-# Generated analyses, dashboards, figures, and model outputs
-.dashboard_bundles/
-benchmark_comparison/outputs/
-methodology/figures/
 outputs/
-probe_runs/
-src/thesis_results/generated_assets/
-structure_comparison/analysis_exports/
-structure_comparison/outputs/
-thesis_methodology/figures/
-thesis_results/generated_assets/
-
-# Machine-specific wrappers and generated cluster jobs
-*.sbatch
-scripts/*_local.sh
-scripts/*tunnel*.sh
-scripts/*queue*.sh
-structure_comparison/scripts/*capstone*
-structure_comparison/scripts/*queue*.py
-structure_comparison/scripts/*queue*.sh
-structure_comparison/scripts/*vm*.py
-structure_comparison/scripts/*vm*.sh
-eda_brain_data/scripts/build_capstone_story_fmriprep_jobs.py
-eda_brain_data/scripts/queue_followup_batches.py
-eda_brain_data/scripts/run_fmriprep_batches.py
-structure_comparison/scripts/build_all_layers_probe_batch.py
-structure_comparison/scripts/run_gemma2b_final_hidden_state_analysis.py
-notebooks/build_*.py
-scripts/render_shared_predictor_png.py
-structure_comparison/notebooks/*.py
-structure_comparison/scripts/build_cross_model_summary_figure.py
-structure_comparison/scripts/build_cross_task_overlap_figure.py
-structure_comparison/scripts/build_gemma2b_coefficient_distribution_figure.py
-structure_comparison/scripts/build_gemma2b_layerwise_figure.py
-structure_comparison/scripts/build_methodology_qc_overview_figure.py
-structure_comparison/scripts/build_results_support_analyses.py
-structure_comparison/scripts/export_all_layers_regressor_features.py
+*.nii
+*.nii.gz
+*.npz

@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "thesis-neuro"
-version = "0.2.0"
+version = "0.3.0"
 description = "Transcript-grounded sparse-feature analysis and fMRI/LLM structure comparison."
 readme = "README.md"
 license = "MIT"
@@ -93,19 +93,9 @@ thesis-neuro-benchmark = "benchmark_comparison.workflow:main"
 
 [tool.setuptools]
 include-package-data = true
-packages = [
-  "thesis_neuro",
-  "thesis_neuro.pipelines",
-  "thesis_neuro.probes",
-  "thesis_neuro.static",
-  "benchmark_comparison",
-  "structure_comparison",
-]
 
-[tool.setuptools.package-dir]
-thesis_neuro = "src/thesis_neuro"
-benchmark_comparison = "benchmark_comparison"
-structure_comparison = "structure_comparison"
+[tool.setuptools.packages.find]
+where = ["src"]
 
 [tool.setuptools.package-data]
 thesis_neuro = ["static/*.css", "static/*.html", "static/*.js"]
@@ -124,6 +114,3 @@ line-length = 120
 
 [tool.ruff.lint]
 select = ["E4", "E7", "E9", "F", "I"]
-
-[tool.ruff.lint.per-file-ignores]
-"structure_comparison/_implementation.py" = ["E501"]

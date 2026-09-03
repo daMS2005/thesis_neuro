@@ -19,6 +19,7 @@ from thesis_neuro.audit_data import (
 )
 from thesis_neuro.config import AppConfig
 from thesis_neuro.models import GemmaModelAdapter
+from thesis_neuro.paths import output_root
 from thesis_neuro.probes.judge import OpenAIProbingAgent
 from thesis_neuro.probes.schema import ProbeRunPaths
 from thesis_neuro.sae import GemmaScopeAdapter
@@ -893,7 +894,8 @@ class FeatureProbingPipeline:
     def _build_paths(self) -> ProbeRunPaths:
         script_segment = self._slugify(self.script_id) if self.script_id else "all_scripts"
         root = (
-            Path("probe_runs")
+            output_root()
+            / "probe_runs"
             / self.bundle_id
             / script_segment
             / f"layer_{self.layer}"
