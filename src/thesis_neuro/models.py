@@ -1,3 +1,5 @@
+"""Hugging Face causal-LM adapter that yields windowed hidden states and logits."""
+
 from __future__ import annotations
 
 import re

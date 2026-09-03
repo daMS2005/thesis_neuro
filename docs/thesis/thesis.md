@@ -1,4 +1,8 @@
-﻿Introduction and Literature Review
+# Thesis Text
+
+Preserved text of the undergraduate thesis that this repository implements. Section headings, tables, and parcel names were formatted for Markdown; the wording is unchanged.
+
+## Introduction and Literature Review
 
 If there is any natural comparison point for modern AI, it is still the human brain. The brain is the system that gives us language, abstraction, memory, planning, and emotion all at once, so once large language models started showing broad and sometimes startling generalization, comparing the two stopped being a niche curiosity and became a serious scientific question. That said, high performance is not the same thing as understanding. Transformer-based language models are extraordinarily capable sequence models (Vaswani et al., 2017), but strong output quality alone does not tell us whether they represent meaning in a human-like way, or even whether they "understand" in any strong sense at all (Bender et al., 2021). That is the tension this thesis starts from: language models clearly do something powerful, but it is still not clear whether the internal organization that supports that power looks anything like the organization of the human brain.
 
@@ -24,7 +28,7 @@ Still, this literature also reveals the main limitation that motivates the thesi
 
 That is exactly the gap this thesis tries to take seriously. The central question is not just whether the brain and language models respond similarly to the same stories, but whether the interaction structure among features is shared across the two systems. In other words, when concepts combine, constrain one another, or appear together in context, do brains and language models organize that structure in comparable ways? To test that, this thesis does not compare raw activations directly. Instead, it builds a transcript-grounded feature basis using sparse autoencoders, aligns that basis to fMRI time, and then asks whether the same transcript-derived predictors explain both parcel-level brain responses and model-side final representations. The hope is to move beyond the weaker claim that brains and language models sometimes look similar, and toward a more demanding question: are they similar in what features matter, how those features interact, and how those interactions are organized during language comprehension?
 
-References
+## References
 
 Abraham, A., Pedregosa, F., Eickenberg, M., Gervais, P., Mueller, A., Kossaifi, J., Gramfort, A., Thirion, B., & Varoquaux, G. (2014). Machine learning for neuroimaging with scikit-learn. Frontiers in Neuroinformatics, 8, Article 14. https://doi.org/10.3389/fninf.2014.00014
 
@@ -114,123 +118,146 @@ Vaswani, A., Shazeer, N., Parmar, N., Uszkoreit, J., Jones, L., Gomez, A. N., Ka
 
 Wehbe, L., Murphy, B., Talukdar, P., Fyshe, A., Ramdas, A., & Mitchell, T. (2014). Simultaneously uncovering the patterns of brain regions involved in different story reading subprocesses. PLOS ONE, 9(11), e112575. https://doi.org/10.1371/journal.pone.0112575
 
-Methodology
+## Methodology
 
 This thesis uses a transcript-grounded comparative methodology to study whether feature interaction structure in the brain and in language models is merely superficially similar or whether both systems rely on a more deeply shared representational organization. The core methodological idea is to avoid comparing raw brain recordings and raw model activations directly. Instead, both systems are placed into a common explanatory frame defined by the same naturalistic story stimuli and by the same transcript-derived feature basis. The full method therefore links brain-data curation, exploratory analysis, transcript preparation, model interpretability, temporal alignment, and comparative model fitting.
 
 At a high level, the project proceeds in five stages. First, candidate fMRI datasets and story stimuli are surveyed in a dedicated exploratory data analysis environment in order to decide which recordings are suitable for the comparison. Second, transcript timing assets are created so that words, tokens, and repetition-time (TR) bins can be aligned precisely. Third, a transcript-first sparse autoencoder pipeline is used to identify and interpret model features that are recruited by the experimental stories. Fourth, those token-level features are converted into TR-level predictors aligned to the fMRI acquisition grid. Finally, matched ridge-regression models are fit to brain targets and to language-model targets so that weight structure, feature importance, and representational geometry can be compared.
 
-1. Brain-side dataset selection and exploratory analysis
+### 1. Brain-side dataset selection and exploratory analysis
 
-1.1 Candidate dataset survey
+#### 1.1 Candidate dataset survey
+
 The brain-data methodology did not begin with preprocessing. It began with a dedicated exploratory survey of candidate naturalistic language datasets in the brain-data analysis environment. Two OpenNeuro datasets were inspected in detail: ds002345 (Narratives) and ds002322 (The Alice Dataset) (Nastase et al., 2021; Bhattasali et al., 2020). This stage was necessary because the thesis required more than a dataset containing language comprehension. It required a dataset whose timing structure, stimulus coverage, and acquisition consistency could support alignment with transcript-derived model features.
 
 The exploratory reports showed that ds002345 offered a much richer basis for the intended comparison. For the targeted initial story subset, ds002345 contained 211 relevant BOLD scans across 105 subjects and four naturalistic stories: black (46 runs), bronx (47 runs), shapesphysical (59 runs), and shapessocial (59 runs). By contrast, ds002322 contained 26 BOLD scans across 26 subjects and only one story stimulus, alice. The ds002322 dataset remained useful as a reference dataset and as a source of additional transcript material for model-side discovery, but it was not chosen as the primary brain dataset for the final structure-comparison analysis.
 
 This decision was not based only on the number of scans. The EDA stage also examined acquisition heterogeneity. In ds002345, the shapesphysical and shapessocial tasks shared a closely matched protocol on a Siemens Prisma scanner with TR = 1.5 s, echo time 0.039 s, flip angle 50, and 2.0 mm isotropic voxels. In the same dataset, black and bronx followed a different protocol with 2.5 mm isotropic voxels, echo time 0.031 s, flip angle 67, and multiband acceleration. In ds002322, the Alice runs were split across two protocol groups. Because the thesis eventually needed a stimulus whose signal structure could be compared with minimal acquisition confounds, the closely matched shapesphysical and shapessocial runs in ds002345 became the most attractive candidates.
 
-1.2 Selective data acquisition and task narrowing
+#### 1.2 Selective data acquisition and task narrowing
+
 The brain-data EDA stage was not only descriptive; it also shaped data acquisition. Rather than downloading entire datasets up front, the project used a metadata-first and task-selective approach. This made it possible to inspect protocol sidecars, event files, and file counts before materializing the full imaging payloads. Selective acquisition was especially important for ds002345, whose targeted story subset alone accounted for roughly 39.56 GiB of compressed BOLD data. This strategy kept the exploratory phase tractable while preserving the ability to expand the local subset later.
 
 The same EDA stage also clarified the temporal structure of the candidate story tasks. The shapesphysical runs contained a fixed introductory music segment followed by the main story, with total scan end time at 454.5 seconds. The shapessocial runs followed an almost identical structure, ending at 457.5 seconds. This temporal regularity mattered because the later comparison depends on assigning transcript words, model tokens, and fMRI samples to the same TR grid.
 
 Most importantly, the EDA led to a concrete course of action rather than remaining a descriptive screen. The practical narrowing strategy was to prioritize the Narratives dataset over Alice, then prioritize stories with stronger spatial definition, cleaner timing structure, closer protocol matching, and higher semantic relevance to the thesis question. This made shapesphysical the primary cleaned-analysis story, left shapessocial as the closest matched companion condition, and retained black, bronx, forgot, and piemanpni as additional Narratives stories that expanded the stimulus base beyond a single cleaned case.
 
-1.3 Exploratory notebooks and quality control
+#### 1.3 Exploratory notebooks and quality control
+
 Within the brain-data analysis environment, a sequence of notebooks was used to inspect the data before any final structure-comparison claims were attempted. These notebooks summarized participant coverage, task timing, scan headers, and story-specific protocol differences. They also provided exploratory ROI and parcel-level analyses, plus a Schaefer-network interpretation view that mapped parcel-level signal back to named large-scale cortical systems. A separate subject-population notebook was used to inspect demographic coverage and story availability across subjects.
 
 This exploratory layer was methodologically important for three reasons. First, it provided empirical justification for choosing ds002345 and for prioritizing shapesphysical. Second, it motivated the use of parcel-level targets rather than a raw whole-brain voxel grid, since parcel summaries offered a more stable and interpretable target space for the available sample size. Third, it created a quality-control checkpoint before expensive preprocessing and model fitting. In other words, the brain-data EDA stage was not ancillary; it was part of the methodology used to decide what to preprocess, what to compare, and how to interpret the resulting signals.
 
-2. Transcript timing assets and shared stimulus space
+### 2. Transcript timing assets and shared stimulus space
 
-2.1 Transcript preparation
+#### 2.1 Transcript preparation
+
 Because the thesis compares story-evoked brain responses with story-evoked model features, temporal alignment of the stimulus is central. The project therefore created a dedicated transcript-preparation pipeline that produced multiple aligned versions of each story. For the target stories in ds002345 and for Alice, audio files were collected, transcript text was normalized, subtitles were generated, word-level timing tables were built, and TR-aligned transcript tables were written to disk.
 
 This transcript pipeline combined automatic speech transcription and explicit alignment. Whisper was used to obtain time-resolved word information (Radford et al., 2022), and long-form audio was chunked during transcription to reduce repetition failures on long files. Gentle, a Kaldi-based forced aligner, was then used to produce more detailed alignment artifacts, including phoneme-level timing tables. The final output for each story included the plain transcript, a word-level timing table, a TR-binned text table, and metadata containing key stimulus parameters such as stimulus onset and repetition time.
 
-2.2 Why transcript timing mattered
+#### 2.2 Why transcript timing mattered
+
 The transcript assets were the glue connecting every later stage of the project. On the brain side, they defined the TR bins against which parcel-level BOLD data were trimmed, cleaned, and indexed. On the model side, they provided the text windows that drove feature discovery and later made it possible to map token activations back to timed words. Without these shared transcript assets, any comparison between brain and model structure would have been vulnerable to temporal mismatch.
 
 The use of word-level timing rather than only sentence-level timing was especially important. The structure-comparison analysis ultimately assigns model tokens to words and words to TR bins. That mapping depends on fine-grained timing information and on stimulus-onset correction. This is particularly relevant for the shapes stories, which begin with a music segment before the main story content. The onset correction ensures that model-derived activity is aligned to the same TR positions that correspond to the actual narrative portion of the fMRI recording.
 
-3. Brain-target construction
+### 3. Brain-target construction
 
-3.1 Task-specific subset creation
+#### 3.1 Task-specific subset creation
+
 After the exploratory stage identified shapesphysical as the primary cleaned-data target, a task-specific BIDS subset was built that contained only the relevant functional runs and the corresponding anatomical scans (Gorgolewski et al., 2016). Restricting the subset to a single task reduced unnecessary preprocessing burden and reduced the risk of mixing runs acquired under different timing or protocol conditions.
 
-3.2 Preprocessing strategy
+#### 3.2 Preprocessing strategy
+
 The final brain targets were built from fMRIPrep derivatives rather than from raw NIfTI files (Esteban et al., 2019). All retained preprocessing targets used the same output space, MNI152NLin6Asym. The methodology is written to match the cleaned bundles that were actually available at fit time rather than an idealized future bundle. The main cortical analyses therefore use the cleaned shapesphysical Schaefer-200 bundle with 48 completed runs, while a secondary non-cortical sensitivity analysis uses a 51-run bundle constructed from subcortical and cerebellar ROIs. The remaining missing shapesphysical runs are not ignored, but the methods do not pretend that the current results were fit on a fully completed 59-run cortical set.
 
-3.3 Parcel extraction
+#### 3.3 Parcel extraction
+
 Once fMRIPrep derivatives were available, the analysis built parcel-level targets using the Schaefer 2018 atlas with 200 parcels and 7 large-scale networks. Parcel extraction was performed with Nilearn's NiftiLabelsMasker (Schaefer et al., 2018; Abraham et al., 2014). At this stage, smoothing, detrending, temporal filtering, and standardization were intentionally disabled. The reason was to keep extraction and cleaning conceptually separate: parcel values were first sampled from the preprocessed BOLD runs, and only afterwards subjected to explicit nuisance regression and temporal cleaning under controlled settings.
 
-3.4 Confound regression and censoring
+#### 3.4 Confound regression and censoring
+
 Cleaning was performed using the confounds tables distributed with the fMRIPrep outputs. The nuisance design included the full 24-parameter motion model: six rigid-body motion parameters, their first derivatives, squared terms, and squared derivatives. In addition, the first six aCompCor components were included to account for physiological and non-neuronal variance (Behzadi et al., 2007). Parcel time series were then detrended and high-pass filtered at 0.008 Hz. No global signal regression was applied in the current intended protocol.
 
 Motion and artifact censoring were treated explicitly. A TR was marked as censored if framewise displacement exceeded 0.5, if standardized DVARS exceeded 1.5, or if a non-steady-state outlier flag was present (Power et al., 2012; Afyouni & Nichols, 2018). Importantly, censored TRs were not physically removed from the saved bundle. Instead, the full TR grid was preserved and a censor mask was stored alongside the parcel values. This design made the saved target matrix faithful to the original run structure while allowing censored samples to be excluded only at model-fitting time.
 
-3.5 Run-wise standardization and final target matrix
+#### 3.5 Run-wise standardization and final target matrix
+
 After cleaning, parcel time series were standardized within run using means and standard deviations computed from uncensored TRs only. This prevented high-motion frames from distorting the scaling parameters. Because atlas resampling can cause some parcels not to survive identically across all runs, the final cleaned bundle kept only the intersection of parcel labels present across the included runs. This ensured that every row in the final target matrix corresponded to the same parcel space.
 
 The resulting brain bundle contained one row per subject, run, and TR. In addition to the parcel-value matrix, it stored sample IDs, subject IDs, run IDs, TR indices, parcel names, censor flags, framewise displacement, and standardized DVARS. This representation preserved the repeated-measures structure needed for leave-one-run-out evaluation and made the brain side of the comparison reproducible and modular.
 
-3.6 Non-cortical ROI sensitivity analysis
+#### 3.6 Non-cortical ROI sensitivity analysis
+
 The main target space remained cortical, but a secondary sensitivity track was added to test whether a cortex-only atlas could be hiding important signal outside Schaefer space. This secondary bundle used bilateral spherical ROIs centered on hippocampus, amygdala, thalamus, striatum, and cerebellum. It was treated as a sensitivity analysis rather than the main target space, but it directly addressed the concern that the primary cortical parcel view might miss meaningful non-cortical structure.
 
-4. Model-side interpretability pipeline
+### 4. Model-side interpretability pipeline
 
-4.1 Models and sparse autoencoder releases
+#### 4.1 Models and sparse autoencoder releases
+
 The model-side methodology was implemented for three causal language models spanning multiple scales and families: Gemma 2 2B, Gemma 2 9B, and Llama 3.1 8B (Gemma Team et al., 2024; Dubey et al., 2024). Each model was paired with a sparse autoencoder release that matched its internal representation family. For the Gemma models, Gemma Scope residual-stream SAEs were used; for the Llama model, Llama Scope was used (Lieberum et al., 2024; He et al., 2024). The decision to use SAE latents as the units of analysis was not ad hoc. It follows the recent interpretability literature showing that sparse autoencoders can recover scalable and often interpretable feature dictionaries from large language models, and that those dictionaries can then support large feature inventories, automated analysis, and feature-level intervention (Cunningham et al., 2023; Gao et al., 2024; Anthropic, 2024; Paulo et al., 2024). The present thesis adopts that general methodological orientation, but it adapts it to a transcript-grounded setting rather than a generic model-wide feature census.
 
-4.2 Transcript-first feature discovery
+#### 4.2 Transcript-first feature discovery
+
 The central design decision on the model side was to make discovery transcript-first. Rather than scanning a generic corpus for strong features and only later asking whether they happened to matter for the stories used in the fMRI experiment, the pipeline began with the experimental transcripts themselves. The discovery corpus therefore consisted of the story transcripts used throughout the project, including Alice and multiple Narratives stories, so that feature discovery remained grounded in the same naturalistic material that later drove the brain comparison. This point matters methodologically because it separates the present workflow from large-scale global SAE inventories. The aim here was not to catalog as many monosemantic features as possible, but to identify those features that were actually recruited by the stimuli that later entered the brain-model comparison.
 
 Each transcript was tokenized with the corresponding model tokenizer and split into sequential windows up to a configured maximum length of 1024 tokens. Earlier shorter-window settings were explored, but they made transcript inspection feel artificially fragmented, so the retained configuration favored larger context while still staying within stable runtime limits. For each window and each target layer, the model produced hidden states and logits, after which the corresponding SAE encoded the residual representation into latent features. The pipeline retained the strongest token-level latent activations, together with sentence IDs, sentence spans, clause spans, top logits, and token metadata. Sentence segmentation was carried out with spaCy so that later stages could inspect the same feature at token, sentence, and clause resolution (Honnibal et al., 2020).
 
 This transcript extraction stage was deliberately rich because it had to serve more than one purpose. It needed to support simple quantitative aggregation, but also later interpretability and alignment work. For that reason, the paired-record artifacts stored enough local context to allow later analysis stages to reconstruct where a feature fired, in what sentence it fired, and what textual alternatives were locally available.
 
-4.3 Feature aggregation and shortlist construction
+#### 4.3 Feature aggregation and shortlist construction
+
 After transcript extraction, the project aggregated statistics for each layer-feature pair across the full transcript set. Features were ranked using several complementary criteria, including total positive activation, peak activation, persistence across windows, and sentence-pooled activation. This multi-criterion strategy was closer in spirit to recent large-scale SAE work than a simple one-metric ranking, but it was adapted for transcript-local auditability rather than only for global feature scoring (Gao et al., 2024; Anthropic, 2024; Paulo et al., 2024). In the final retained configuration, the pipeline kept relatively large token-level and pooled candidate sets, ranked the top features under multiple statistics, and then formed a transcript-relevant predictor bank that could be truncated before comparative fitting. The retained predictor setting for the mainline analyses was k = 128, while smaller banks such as k = 32 were treated as sensitivity analyses rather than the primary specification. Representative high-activation transcript examples were also stored so that shortlisted features could be inspected qualitatively.
 
 This stage is methodologically important because it defines the predictor vocabulary used later in the thesis. The features carried into alignment and model fitting were not arbitrary SAE dimensions; they were those that were repeatedly and meaningfully recruited by the stories relevant to the project. Just as importantly, the shortlist was tuned to preserve weaker but locally meaningful transcript features rather than only the most globally dominant ones. That adjustment emerged from the audit process itself: early runs over-favored globally strong features and made transcript-level inspection less informative.
 
-4.4 External context collection with Dolma
+#### 4.4 External context collection with Dolma
+
 Once transcript-relevant features had been identified, the next question became what those features represented more generally in natural language. To answer that question, the pipeline used the Dolma corpus as a large external interpretation corpus (Soldaini et al., 2024). Dolma was not used to discover features. Instead, it was used to contextualize the already-selected transcript-relevant features.
 
 For each shortlisted feature, Dolma was streamed document by document, and only the shortlisted feature dimensions were monitored. The pipeline retained high-scoring contexts for each feature and stored multiple evidence views, including token snippets, spans, sentences, and document-level context. In the final retry configuration, the Dolma stage was bounded but substantial, with up to 10,000 windows scanned and up to 25 top contexts retained per feature. This stage extended the interpretability of the transcript-first shortlist beyond the narrow experimental stories without redefining what counted as an important feature.
 
-4.5 LLM-based conceptual labeling
+#### 4.5 LLM-based conceptual labeling
+
 The project then used a structured LLM-as-judge stage to summarize evidence about each feature. Importantly, the judge did not generate the shortlist; it operated on features that had already been selected by the transcript-first pipeline. The judge was given bundles consisting of transcript examples, Dolma contexts, correlated features, and alignment evidence when available. In the present analysis, the judge model was GPT-5 mini. Its task was to propose a likely concept, summarize supporting and conflicting evidence, and indicate uncertainty. This stage was motivated especially by recent work on automated large-scale feature interpretation, but it was implemented with a narrower purpose than those general systems: the goal here was to label many transcript-relevant features compactly enough that a smaller high-confidence subset could later receive more expensive localized analysis (Anthropic, 2024; Paulo et al., 2024).
 
 This stage played two roles. First, it made the feature inventory more interpretable for human inspection. Second, it provided a principled way to choose a reduced set of high-confidence features for downstream alignment and structure-comparison analyses. A practical rule emerged from the development process: judge many, align fewer. The judge budget and the alignment budget were therefore intentionally separated rather than being forced to match. Features with acceptable judge status were the ones most likely to receive deeper localized analysis, but the judge stage was not itself the final LM target construction.
 
-4.6 Localized feature alignment
+#### 4.6 Localized feature alignment
+
 The final interpretability stage was feature-focused alignment within the transcripts. For each selected feature, the pipeline retained the strongest windows and token positions and evaluated local perturbation methods such as deletion with retokenization, sentence masking, and clause deletion. These perturbation-based records did not define the feature shortlist, but they provided more localized evidence about what textual material supported the feature's activation. This was especially useful for distinguishing between broad semantic features, more localized lexical features, and features whose behavior appeared tied to compositional structure. In practice, this stage functioned as a smaller and more expensive causal-grounding track layered on top of the broader judge stage, rather than as another mass-labeling stage.
 
-4.7 Auditability and focused feature probing
+#### 4.7 Auditability and focused feature probing
+
 Interpretability was treated as an auditable workflow rather than only as a batch extraction problem. For that reason, the retained artifacts were designed to support inspection at token, span, sentence, and transcript-window scale. Transcript-local evidence, Dolma contexts, judge summaries, correlated features, and alignment outputs were all preserved in a form that could be re-inspected without rerunning the entire extraction stage. This auditability requirement materially influenced the retained configuration: earlier runs overemphasized globally strong features, while later runs increased retention so weaker but still meaningful local features would remain visible for inspection.
 
 An additional focused probing stage was also developed for a smaller subset of features. In that stage, one feature at a time was examined through a structured evidence bundle combining transcript examples, Dolma contexts, judge output, and alignment records. Candidate hypotheses were then tested with synthetic probes, counterfactual edits, and optional steering interventions scored against the actual SAE activations. This probing stage was not the source of the main predictor bank, but it strengthened the interpretability workflow by making feature labeling more experimental and less purely descriptive.
 
-5. Transcript-to-TR feature construction
+### 5. Transcript-to-TR feature construction
 
-5.1 Reconstructing a global token stream
+#### 5.1 Reconstructing a global token stream
+
 The structure-comparison stage required model-side features to be expressed on the same time axis as the fMRI data. This was achieved by reconstructing a global token stream for the chosen stimulus from the transcript paired-record artifacts. The analysis used the transcript records from a canonical layer to rebuild token order across windows and validated that global token identities were contiguous and internally consistent.
 
-5.2 Word alignment and TR assignment
+#### 5.2 Word alignment and TR assignment
+
 Tokens were then aligned to words using each model's own tokenizer rather than a generic tokenization heuristic. The transcript text was re-tokenized with the cached tokenizer associated with the relevant model family, and the resulting token groups were validated against the word-level timing table produced during transcript preparation. This created a deterministic token-to-word-to-TR mapping that depended on model-specific tokenization but still had to satisfy hard matching checks against the timed transcript. Each timed word was subsequently assigned to a TR bin by the midpoint of its onset and offset, after correction for the stimulus onset stored in the metadata. That mapping is one of the most important components of the thesis methodology because it is what makes it meaningful to compare feature activity in the language model with brain activity at specific TRs.
 
-5.3 TR-level feature views
+#### 5.3 TR-level feature views
+
 Once each token had been assigned to a TR, the pipeline summarized feature activity within each TR under several complementary views, including presence, mass, average, peak, and count. Presence recorded whether a feature fired at least once during the TR. Mass recorded the sum of positive activations. Average divided that TR-level mass by the number of active token events, reducing the extent to which predictor magnitude simply scaled with token density or total activation mass. Peak captured the strongest activation within the TR, and count measured how many feature events occurred. The retained predictor matrix for the final structure-comparison analyses used feature average. Summed activation, or mass, was kept only as an earlier alternative and sensitivity condition because it made generalization harder to interpret when stories differed in total token count or activation mass.
 
-5.4 Predictor panel and LM target construction
+#### 5.4 Predictor panel and LM target construction
+
 The predictor panel was drawn from the transcript-relevant feature shortlist, specifically from the reduced set selected for alignment and downstream analysis. In the present analysis, the main comparison families are layer 8, layer 13, layer 22, and the pooled all-layers family. These represent early, middle, late, and combined-depth views of the predictor basis.
 
 In the final retained specification, the shared predictor basis remained transcript-derived SAE features, but the LM target was changed. Rather than predicting a disjoint set of held-out SAE features, the model-side regression used the model's own final hidden-state representation aggregated to the same TR grid. In other words, the predictor matrix still came from the transcript-relevant SAE shortlist, but the LM target now represented the model's final internal representation of the story rather than an auxiliary held-out feature panel. For Gemma 2 2B, this produced a 2304-dimensional TR-averaged target matrix; the same construction generalizes to the other models in their native final hidden-state dimensionality. This change improved the conceptual symmetry of the comparison because the LM side now asks how well transcript-grounded features explain the model's final representational state, while the brain side asks how well the same features explain cleaned BOLD responses.
 
-6. Comparative model fitting
+### 6. Comparative model fitting
 
-6.1 Brain encoding model
+#### 6.1 Brain encoding model
+
 The brain-side fit used a linear encoding-style model. Let X denote the TR-level predictor matrix built from transcript-derived SAE features, and let Y_brain denote the parcel-level BOLD response matrix. Before fitting to brain data, the predictor matrix was expanded with a finite impulse response lag basis using lags of 0, 1, 2, 3, and 4 TRs. This choice allowed the model to capture delayed hemodynamic responses without committing to a single fixed canonical hemodynamic response function.
 
 For each feature family, the lag-expanded predictor matrix was fit to the parcel-response matrix using ridge regression (Hoerl & Kennard, 1970):
@@ -239,12 +266,14 @@ Y = XW + e
 
 with an L2 penalty on the weights. Samples were included only if the corresponding TR existed in the transcript-aligned predictor matrix and was not marked as censored in the brain target bundle. Evaluation was performed with grouped leave-one-run-out cross-validation, where each group corresponded to an entire subject-run. This grouping was essential because adjacent TRs within the same run are temporally dependent and should not be split between training and test sets. An inner grouped cross-validation loop selected the regularization parameter from the grid {0.1, 1, 10, 100, 1000}. Predictors and targets were standardized using training-set statistics only.
 
-6.2 Analogous language-model fit
+#### 6.2 Analogous language-model fit
+
 The project did not compare brain fits only with raw model activations. Instead, it built an analogous regression on the language-model side using the same transcript-derived predictor basis but a different target matrix, namely the TR-level final hidden-state representation of the model. This LM-side fit answers a related but distinct question: given the transcript-relevant predictor features, how well can the model's final representation of the story be predicted from the same basis?
 
 Using the same predictor basis on both sides is the key methodological move of the thesis. It means that differences between brain and LM fits can be interpreted as differences in target structure rather than differences in what was used as input. On the LM side, ridge regression was again used, but without the lag expansion required for BOLD data. Cross-validation was performed over five contiguous TR blocks rather than random samples so that temporal autocorrelation would not inflate performance estimates.
 
-6.3 Evaluation metrics
+#### 6.3 Evaluation metrics
+
 The comparison between systems was intentionally multi-dimensional. Prediction accuracy alone is not enough to establish shared representational structure, so the workflow computed several complementary metrics.
 
 First, held-out Pearson correlation and held-out R^2 were calculated for each target and then summarized across parcels on the brain side and across LM target dimensions on the model side. These metrics quantify whether the predictor basis explains either target system at all.
@@ -257,11 +286,11 @@ Fourth, sample-level representational similarity analysis was performed by avera
 
 Taken together, these metrics distinguish several possible outcomes. Strong predictive performance with weak weight agreement would suggest that both systems are predictable from the stories but in structurally different ways. Strong weight and feature-importance agreement with weak sample-level RSA would suggest shared explanatory features but different sample geometry. Strong agreement across all metrics would provide the strongest evidence for a genuinely shared feature-interaction organization.
 
-7. Sensitivity analyses
+### 7. Sensitivity analyses
 
 Several targeted sensitivities were treated as robustness checks rather than alternative main methods. First, average TR aggregation was compared with mass aggregation, but average was retained because it reduced dependence on token density and total activation mass. Second, the retained predictor bank size k = 128 was compared against smaller predictor sets such as k = 32. Third, the main cortical Schaefer target space was complemented by the non-cortical ROI sensitivity analysis described above. These analyses matter methodologically because they clarify which parts of the final specification were central and which were tested but not centered.
 
-8. Methodological contribution
+### 8. Methodological contribution
 
 The methodological contribution of the thesis is therefore not simply the use of fMRI encoding models, and not simply the use of SAEs for language-model interpretability. It is the integration of those components into a shared-feature-basis comparison framework. The brain EDA stage determines which recordings are suitable and how they should be interpreted. The transcript-preparation pipeline creates a shared temporal scaffold. The transcript-first SAE pipeline identifies features that are genuinely engaged by the experimental stories. The structure-comparison analysis then asks whether those same features explain brain responses and model-side final representations in similar ways.
 
@@ -280,11 +309,11 @@ On the model side, several engineering failures were methodologically informativ
 The final successful model-side runs were executed on a Google Cloud VM with an NVIDIA L4 GPU, roughly 24 GB of VRAM, about 15 GiB of host RAM, and a 32 GiB swap file added during execution. These hardware details matter because they clarify an important practical limitation of the project: scaling the interpretability workflow to larger models was constrained at least as much by host-memory pressure and loader behavior as by nominal GPU size. Earlier shorter-context and lighter-audit configurations were more stable but produced less faithful transcript-local evidence, while more aggressive settings increased audit quality but strained runtime reliability. The retained retry configuration therefore reflects a compromise between interpretive richness and execution stability rather than a purely abstract ideal.
 
 
-Results
+## Results
 
 This section reports the completed analyses currently available in the project. The results fall into two tiers. The first tier is the earlier raw-brain analysis on shapessocial, which served as the initial end-to-end validation of the structure-comparison framework. The second tier is the stronger cleaned-brain analysis on shapesphysical, which uses confound-cleaned parcel targets and therefore provides the most informative current basis for interpretation. Because the cleaned shapesphysical preprocessing is complete for 48 of the 59 expected runs rather than all 59, these results should still be understood as strong interim results rather than the absolute final endpoint of the thesis. Even so, they are substantially more informative than the earlier raw analysis.
 
-9. Scope of the completed result sets
+### 9. Scope of the completed result sets
 
 The raw shapessocial full analysis used all 59 available runs and 17,995 subject-run-TR samples. The cleaned shapesphysical analysis used the completed preprocessing batches 00-05, corresponding to 48 observed runs out of 59 expected runs. This cleaned bundle contained 14,544 total parcel samples, of which 14,116 were retained after censoring, with a mean censor fraction of approximately 0.029. All cleaned analyses reported below used the same 200-parcel Schaefer target space and the same cleaned shapesphysical bundle, which means the three model families can be compared directly on the brain side.
 
@@ -295,12 +324,13 @@ The three completed cleaned model analyses are:
 
 For each model, results were reported across multiple layer families together with an all-layers pooled family. The principal metrics were mean brain correlation, mean brain R^2, mean LM correlation, mean LM R^2, sample-level RSA, and feature-importance correlation.
 
-10. Raw shapessocial baseline
+### 10. Raw shapessocial baseline
 
-10.1 Summary metrics
+#### 10.1 Summary metrics
+
 The raw shapessocial analysis served as the first completed end-to-end comparison. Its principal family-level results were:
 
-Table 1. Family-level summary metrics for the raw shapessocial baseline.
+**Table 1.** Family-level summary metrics for the raw shapessocial baseline.
 
 | Family | Brain mean test correlation | LM mean test correlation | Sample RSA | Feature-importance correlation |
 |---|---:|---:|---:|---:|
@@ -311,18 +341,21 @@ Table 1. Family-level summary metrics for the raw shapessocial baseline.
 
 At first glance, the raw all-layers family appeared encouraging because it produced the highest brain-side held-out correlation in the entire project (0.272). However, this apparent strength was offset by a major limitation: the corresponding brain R^2 values were massively negative across all families. In other words, the model could recover rank-order signal well enough to produce modest positive correlations, but it did not explain parcel-level variance in a stable or well-calibrated way.
 
-10.2 Anatomical pattern in the raw analysis
-The parcel pattern in the raw shapessocial analysis was dominated by visual and dorsal-attention territories. In the all-layers family, the strongest parcel was 7Networks_RH_DorsAttn_Post_2 (r = 0.558), followed by left and right visual parcels and additional dorsal-attention parcels. This pattern suggested that the raw analysis was still strongly influenced by broad stimulus-locked structure and by residual variance that had not been fully controlled.
+#### 10.2 Anatomical pattern in the raw analysis
 
-10.3 What the raw analysis established
+The parcel pattern in the raw shapessocial analysis was dominated by visual and dorsal-attention territories. In the all-layers family, the strongest parcel was `7Networks_RH_DorsAttn_Post_2` (r = 0.558), followed by left and right visual parcels and additional dorsal-attention parcels. This pattern suggested that the raw analysis was still strongly influenced by broad stimulus-locked structure and by residual variance that had not been fully controlled.
+
+#### 10.3 What the raw analysis established
+
 Despite its limitations, the raw shapessocial analysis established three important points. First, the full transcript-to-brain and transcript-to-LM pipeline could be run end to end on real data. Second, the fitted feature-importance structure showed strong cross-system agreement, especially in the layer8 and all-layers families. Third, sample-level RSA remained close to zero, implying that the strongest shared signal was not in detailed representational geometry but in which predictors mattered most. These observations became the baseline against which the cleaned shapesphysical results were evaluated.
 
-11. Cleaned shapesphysical results
+### 11. Cleaned shapesphysical results
 
-11.1 Cross-model all-layers comparison
+#### 11.1 Cross-model all-layers comparison
+
 The cleaned shapesphysical analysis provides the most informative current result set because it combines confound-cleaned parcel targets with the transcript-first feature basis. The all-layers results below are presented in a final-hidden-state framing on the LM side. That framing is exact for Gemma 2 2B, which has already been rerun with a true final hidden-state target, and provisional for Gemma 2 9B and Llama 3.1 8B, whose corresponding hidden-state-style summaries are very similar to the currently available outputs. The all-layers results for the three completed models are summarized below in Table 2.
 
-Table 2. Cross-model all-layers results for the cleaned shapesphysical analysis under the final-hidden-state presentation.
+**Table 2.** Cross-model all-layers results for the cleaned shapesphysical analysis under the final-hidden-state presentation.
 
 | Model | LM target framing | Brain r | Brain R^2 | LM r | LM R^2 | Sample RSA | Feature-importance corr |
 |---|---|---:|---:|---:|---:|---:|---:|
@@ -334,13 +367,15 @@ Several features of this table are immediately important. First, the cleaned ana
 
 Third, the model-side fit separates the models more clearly than the brain-side fit. Under this presentation, Llama 3.1 8B is strongest on the LM side, followed by Gemma 2 9B, then Gemma 2 2B. Fourth, feature-importance agreement remains high in the cleaned setting, ranging from 0.9086 to 0.9610. This repeats a key pattern from the raw analysis: the strongest cross-system regularity lies in the relative salience of predictors rather than in detailed sample geometry. If one metric is the clearest thesis headline, it is feature-importance agreement rather than sample RSA.
 
-Figure 1. Cross-model all-layers summary for the cleaned shapesphysical analysis.
+**Figure 1.** Cross-model all-layers summary for the cleaned shapesphysical analysis.
+
 In the final thesis, this figure should plot the Table 2 metrics across models, ideally as grouped bars or dot plots showing brain correlation, brain R^2, LM correlation, LM R^2, sample RSA, and feature-importance correlation side by side.
 
-11.2 Gemma 2 2B hidden-state reference result
+#### 11.2 Gemma 2 2B hidden-state reference result
+
 Because Gemma 2 2B has already been rerun with the final hidden-state LM target, it provides the cleanest single reference result for the present methodology. In that configuration, the predictor basis remained fixed at 128 transcript-selected features, the cleaned brain bundle remained the same 48-run shapesphysical cortical bundle, the brain-side evaluation remained leave-one-run-out, and the LM-side evaluation remained blocked 5-fold. What changed was the LM target definition, not the brain side or the shared predictor basis.
 
-Table 3. Gemma 2 2B comparison across aggregation and LM-target variants.
+**Table 3.** Gemma 2 2B comparison across aggregation and LM-target variants.
 
 | Gemma 2 2B variant | Brain r | Brain R^2 | LM r | LM R^2 | Sample RSA | Feature-importance corr |
 |---|---:|---:|---:|---:|---:|---:|
@@ -350,10 +385,12 @@ Table 3. Gemma 2 2B comparison across aggregation and LM-target variants.
 
 Table 3 makes three points especially clear. First, moving from mass aggregation to average aggregation fixed the catastrophic LM R^2 problem without materially changing the brain-side fit. Second, moving from held-out SAE targets to final hidden states did not hurt the brain side at all, because the brain target, predictor basis, and cross-validation scheme stayed the same. Third, the final hidden-state target improved the conceptual validity of the model-side regression while keeping LM R^2 positive and increasing both sample RSA and feature-importance overlap relative to the average held-out-SAE variant. For that reason, the average-plus-final-hidden-state configuration is the strongest single Gemma 2 2B result to foreground in the thesis.
 
-Figure 2. Gemma 2 2B variant comparison across aggregation and LM-target choices.
+**Figure 2.** Gemma 2 2B variant comparison across aggregation and LM-target choices.
+
 In the final thesis, this figure should visualize Table 3 directly, with particular emphasis on how average aggregation improves LM calibration and how the final hidden-state target preserves the main cross-system signal.
 
-11.3 Single-layer and model-specific findings
+#### 11.3 Single-layer and model-specific findings
+
 The all-layers family was the strongest brain-side family for every completed cleaned model, but the single-layer analyses are also informative.
 
 For Gemma 2 2B, the best single-layer brain result was obtained at layer25 (brain correlation = 0.154; brain R^2 = 0.0305). The strongest LM-side single-layer result occurred at layer17 (LM correlation = 0.389; LM R^2 = 0.0708), while the highest sample RSA appeared at layer22 (0.0680). The strongest feature-importance agreement occurred at layer17 (0.986). Taken together, these results suggest that Gemma 2 2B exhibits modest but consistent brain alignment across depth, with a particularly strong cross-system agreement about which features matter, even when LM-side predictive performance is not uniformly strong.
@@ -362,34 +399,39 @@ For Gemma 2 9B, the best single-layer brain result was obtained at layer36 (brai
 
 For Llama 3.1 8B, the best single-layer brain result was obtained at layer16 (brain correlation = 0.155; brain R^2 = 0.0298), while the highest sample RSA occurred at layer31 (0.0856). Several Llama LM-side layers remained unusually strong relative to the brain-side separation, so those values should still be interpreted cautiously. The most plausible reading is not that Llama has solved the entire cross-system problem, but that its LM target representation may in some cases be easier to predict from the chosen transcript-derived basis than the corresponding brain targets are. Accordingly, the Llama LM-side values are informative, but they should not be taken at face value as a straightforward model superiority result without further auditing of the LM target construction.
 
-11.4 Anatomical pattern in the cleaned analyses
+#### 11.4 Anatomical pattern in the cleaned analyses
+
 One of the strongest qualitative changes from the raw to the cleaned analyses lies in the anatomical distribution of the top parcels. In all three cleaned all-layers runs, the highest-scoring parcels were highly consistent:
-1. 7Networks_LH_SomMot_2, with correlation around 0.695 to 0.697
-2. 7Networks_RH_SomMot_1, with correlation around 0.686 to 0.689
-3. 7Networks_RH_SomMot_2, with correlation around 0.648 to 0.651
-4. 7Networks_LH_SomMot_1, with correlation around 0.578 to 0.582
+1. `7Networks_LH_SomMot_2`, with correlation around 0.695 to 0.697
+2. `7Networks_RH_SomMot_1`, with correlation around 0.686 to 0.689
+3. `7Networks_RH_SomMot_2`, with correlation around 0.648 to 0.651
+4. `7Networks_LH_SomMot_1`, with correlation around 0.578 to 0.582
 5. right and left Default_Temp parcels
 6. salience/ventral-attention parcels in frontal opercular and parietal opercular regions
 
 This pattern differs substantially from the raw shapessocial analysis, which was dominated by visual and dorsal-attention parcels. The cleaned shapesphysical results therefore appear less driven by broad visual or generic attentional structure and more concentrated in a somatomotor-temporal pattern. This shift should not be over-interpreted as proving that the models have captured a purely high-level semantic language network. The strong somatomotor component indicates that stimulus-locked lower-level or task-coupled structure still contributes importantly to the fit. However, the move away from the raw visual/dorsal-attention pattern is still methodologically encouraging, because it suggests that the cleaned target construction has reduced at least some of the broad confounding structure that dominated the raw analysis.
 
-Figure 3. Parcelwise cortical pattern in the cleaned all-layers analyses.
+**Figure 3.** Parcelwise cortical pattern in the cleaned all-layers analyses.
+
 In the final thesis, this figure should show the parcelwise brain-correlation maps for the three all-layers models side by side, so the shared somatomotor-temporal pattern described above is visible rather than only stated in prose.
 
-11.5 Cross-system structure: feature importance versus geometry
+#### 11.5 Cross-system structure: feature importance versus geometry
+
 Across both the raw and cleaned analyses, one result is especially stable: feature-importance agreement is much stronger than sample-level representational similarity. In the cleaned all-layers analyses, feature-importance correlations range from 0.9086 to 0.9610, while sample RSA ranges only from 0.0185 to 0.0670. Even the strongest single-layer sample RSA, Gemma 2 9B layer36 at 0.0963, remains modest in absolute magnitude.
 
 This pattern suggests that the brain and model fits agree more strongly about which transcript-derived features are important than about the exact geometry of moment-by-moment representational states. Put differently, the current evidence supports partial convergence in feature salience more strongly than full convergence in representational geometry. This is an important substantive result for the thesis, because it narrows the kind of alignment that can currently be claimed. The strongest current claim is not that the two systems form the same representational space, but that they weight some of the same transcript-grounded features in comparable ways.
 
-Figure 4. Feature-importance agreement versus sample RSA across models.
+**Figure 4.** Feature-importance agreement versus sample RSA across models.
+
 In the final thesis, this figure should contrast the two metrics directly, making it visually obvious that feature-importance overlap is consistently much stronger than sample-level geometric similarity.
 
-11.6 Model comparison
+#### 11.6 Model comparison
+
 The cleaned shapesphysical results suggest a dissociation between model-internal predictability and brain alignment. Gemma 2 9B clearly improves over Gemma 2 2B on the LM side, yet this advantage barely changes the all-layers brain correlation. Llama 3.1 8B also produces the strongest LM-side values in the current presentation, but again without a commensurate increase in brain alignment. The brain-side metric therefore appears relatively insensitive to the model-size differences that are more visible in the LM-side regression.
 
 This has two possible interpretations, both plausible. One possibility is that the current predictor basis already captures the components of story structure that are most relevant to parcel-level brain prediction, such that larger models add little extra benefit on that side. The second possibility is that the current brain target construction and sample size are still not sensitive enough to reveal finer model differences. The present results cannot fully distinguish these explanations, but they do show that increasing LM-side recoverability does not automatically translate into stronger brain alignment.
 
-12. Overall interpretation of the current results
+### 12. Overall interpretation of the current results
 
 Taken together, the results support five main conclusions.
 

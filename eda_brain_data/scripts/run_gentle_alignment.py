@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+"""Optional forced alignment of story audio and transcripts through a local Gentle server."""
+
 import argparse
 import csv
 import json

@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+"""Prepare WAV copies, subtitle files, and TR-aligned transcript tables from Narratives assets."""
+
 import argparse
 import csv
 import json

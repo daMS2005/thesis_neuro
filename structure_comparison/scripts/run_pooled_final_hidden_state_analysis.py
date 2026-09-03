@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+"""Pooled multi-story all-layers analysis against final-hidden-state LM targets."""
+
 from __future__ import annotations
 
 import argparse

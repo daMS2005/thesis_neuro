@@ -1,3 +1,5 @@
+"""Select the top judged features from feature_concepts.jsonl for the alignment stage."""
+
 from __future__ import annotations
 
 import json

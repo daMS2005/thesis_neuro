@@ -1,3 +1,5 @@
+"""Load feature-run artifacts and build the views served by the audit dashboard."""
+
 from __future__ import annotations
 
 import json

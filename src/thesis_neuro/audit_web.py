@@ -1,3 +1,5 @@
+"""Standard-library HTTP server behind the transcript and feature audit dashboard."""
+
 from __future__ import annotations
 
 import argparse

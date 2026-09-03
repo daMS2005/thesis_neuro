@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+"""Worker that executes a shard of probe jobs from a JSONL manifest and logs each outcome."""
+
 from __future__ import annotations
 
 import argparse

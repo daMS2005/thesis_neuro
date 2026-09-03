@@ -1,3 +1,5 @@
+"""Transcript-first feature discovery, aggregation, and shortlist construction."""
+
 from __future__ import annotations
 
 import heapq

@@ -1,3 +1,5 @@
+"""Tests for lightweight CLI help, fixtures, schemas, storage, and dashboard packaging."""
+
 from __future__ import annotations
 
 import json

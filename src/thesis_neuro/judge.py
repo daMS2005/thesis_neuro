@@ -1,3 +1,5 @@
+"""OpenAI-backed judge clients that label features from collected evidence."""
+
 from __future__ import annotations
 
 import asyncio

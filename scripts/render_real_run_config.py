@@ -1,3 +1,5 @@
+"""Render a model-specific run config by resolving SAE layers at matched relative depths."""
+
 from __future__ import annotations
 
 import argparse

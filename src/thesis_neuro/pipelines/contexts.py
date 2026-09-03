@@ -1,3 +1,5 @@
+"""Dolma context collection for shortlisted transcript features."""
+
 from __future__ import annotations
 
 import heapq

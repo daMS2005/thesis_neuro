@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+"""Slim a transcript_paired_records artifact down to selected stimuli for hidden-state runs."""
+
 from __future__ import annotations
 
 import argparse

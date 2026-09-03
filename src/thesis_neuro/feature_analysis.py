@@ -1,3 +1,5 @@
+"""Streaming, resume-safe feature ranking, correlation, judge-input, and selection stages."""
+
 from __future__ import annotations
 
 import asyncio

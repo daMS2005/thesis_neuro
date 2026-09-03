@@ -1,3 +1,5 @@
+"""OpenAI-backed probing agent that proposes and evaluates feature hypotheses."""
+
 from __future__ import annotations
 
 import json

@@ -1,3 +1,5 @@
+"""Established structure-comparison implementation behind the focused facade modules."""
+
 from __future__ import annotations
 
 import argparse

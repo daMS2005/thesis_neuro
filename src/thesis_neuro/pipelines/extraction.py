@@ -1,3 +1,5 @@
+"""Base extraction pipeline over Dolma windows plus model and SAE prefetching."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass

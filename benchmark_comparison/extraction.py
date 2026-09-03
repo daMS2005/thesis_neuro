@@ -1,3 +1,5 @@
+"""SAE feature extraction and answer-choice scoring over normalized benchmark items."""
+
 from __future__ import annotations
 
 import json

@@ -1,3 +1,5 @@
+"""Ridge fitting of benchmark targets and comparison against registered brain models."""
+
 from __future__ import annotations
 
 import csv

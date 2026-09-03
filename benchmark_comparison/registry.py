@@ -1,3 +1,5 @@
+"""Registry of model runs and the external artifact paths each benchmark fit expects."""
+
 from __future__ import annotations
 
 import json

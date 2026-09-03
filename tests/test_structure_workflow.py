@@ -1,3 +1,5 @@
+"""Unit tests for transcript alignment, brain design matrices, and grouped ridge CV."""
+
 from __future__ import annotations
 
 import json

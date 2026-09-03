@@ -1,3 +1,5 @@
+"""Exploratory behavioral-benchmark extension built on the transcript-selected SAE feature basis."""
+
 from pathlib import Path
 
 from thesis_neuro.paths import repository_root

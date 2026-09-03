@@ -1,3 +1,5 @@
+"""Minimal grouped-ridge encoding analysis over saved feature and target bundles."""
+
 from __future__ import annotations
 
 import argparse

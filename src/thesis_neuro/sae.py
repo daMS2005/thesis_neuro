@@ -1,3 +1,5 @@
+"""Sparse-autoencoder adapter that discovers and loads Gemma Scope-style SAE releases."""
+
 from __future__ import annotations
 
 import re

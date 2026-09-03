@@ -1,3 +1,5 @@
+"""Auditable multi-round feature probing loop with evidence, tests, steering, and reports."""
+
 from __future__ import annotations
 
 import json

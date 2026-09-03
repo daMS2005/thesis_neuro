@@ -1,237 +1,120 @@
 # Model Fitting Results
 
-## Overview
+This page summarizes the completed structure-comparison analyses reported in the thesis. The numbers are copied from the [thesis results section](../thesis/thesis.md#results); the repository ships the code that produced them, not the data or the generated result bundles. Regenerating any table requires the external inputs described in [Data Contracts](../data-contracts.md) and the commands in [Reproducibility](../reproducibility.md).
 
-This section summarizes the results currently available from the model-fitting pipeline. It distinguishes between:
+## Scope
 
-1. completed raw-brain analyses on `shapessocial`
-2. preprocessing-complete but still partial cleaned-brain analyses on `shapesphysical`
-3. the current status of preliminary cleaned reruns using the updated feature outputs
+Two tiers of analysis were completed.
 
-The present document is intended as a thesis-ready draft results section based on the analyses that have already been executed. Where a result is still in progress, that is stated explicitly.
+| Tier | Story | Brain targets | Runs | Samples | Models |
+| --- | --- | --- | ---: | ---: | --- |
+| Raw baseline | `shapessocial` | Raw Schaefer-200 parcels, no confound cleaning | 59 | 17,995 | Gemma 2 2B (layers 8, 13, 22) |
+| Cleaned analysis | `shapesphysical` | fMRIPrep confound-cleaned Schaefer-200 parcels | 48 of 59 | 14,116 retained of 14,544 | Gemma 2 2B, Gemma 2 9B, Llama 3.1 8B |
 
-## Available Result Sets
+The cleaned bundle covers preprocessing batches 00 through 05 with a mean censor fraction of about 0.029. Because 11 of the expected 59 runs were still unprocessed when the thesis was written, the cleaned results are strong interim results rather than the final endpoint of the study. All three cleaned model analyses share the same brain bundle, so they can be compared directly on the brain side.
 
-At the time of writing, the following result categories are available:
+Every family was evaluated with the same estimator and metrics: ridge regression with inner-loop alpha selection, leave-one-run-out cross-validation on the brain side, blocked five-fold cross-validation on the LM side, held-out Pearson correlation and R², sample-level representational similarity analysis (RSA), and Pearson correlation between brain-side and LM-side feature-importance vectors. See [Model Fitting Methodology](../methodology/model-fitting.md) for definitions.
 
-1. **Raw `shapessocial`, partial run subset**
-   - `structure_comparison/outputs/remote_experiment_l8_l13_l22_partial_real`
-   - based on `2` resolved runs during early pipeline validation
+## Raw `shapessocial` Baseline
 
-2. **Raw `shapessocial`, current intermediate run subset**
-   - `structure_comparison/outputs/remote_experiment_l8_l13_l22_current_real`
-   - based on `9` resolved runs during intermediate validation
+The raw analysis was the first end-to-end run of the pipeline on real data.
 
-3. **Raw `shapessocial`, full run set**
-   - `structure_comparison/outputs/remote_experiment_l8_l13_l22_full_real`
-   - based on `59` runs and `17,995` subject-run-TR samples
+**Table 1.** Family-level metrics for the raw `shapessocial` baseline.
 
-4. **Raw `shapesphysical`, TR-artifact probe only**
-   - `structure_comparison/outputs/remote_experiment_l8_l13_l22_shapesphysical_probe`
-   - this probe successfully produced transcript-aligned TR feature artifacts, but it did not yield completed brain-model result bundles
+| Family | Brain r | LM r | Sample RSA | Feature-importance r |
+| --- | ---: | ---: | ---: | ---: |
+| `layer8` | 0.173 | 0.233 | 0.0036 | 0.985 |
+| `layer13` | 0.219 | 0.171 | 0.0117 | 0.418 |
+| `layer22` | 0.223 | 0.367 | -0.0615 | 0.849 |
+| `all_layers` | 0.272 | 0.360 | 0.0167 | 0.938 |
 
-5. **Cleaned `shapesphysical`, partial fMRIPrep bundle from batch 00**
-   - `structure_comparison/brain_targets/shapesphysical_schaefer200_cleaned_batch00.npz`
-   - `structure_comparison/brain_targets/shapesphysical_schaefer200_cleaned_batch00.summary.json`
-   - based on `8` completed preprocessed runs
+What the baseline established:
 
-6. **Preliminary cleaned `shapesphysical` analysis**
-   - currently launched against the updated `gemma_2_2b` feature run
-   - output directory:
-     `structure_comparison/outputs/final_output_retry_gemma_2_2b_shapesphysical_cleaned_batch00_prelim`
-   - this run is in progress and therefore not interpreted below as a finished result
+- The pooled `all_layers` family gave the highest brain correlation in the whole project (0.272), but brain R² was strongly negative in every family. The model recovered rank-order signal without explaining parcel variance in a calibrated way.
+- Later-layer LM targets were easier to predict than earlier-layer targets.
+- Feature-importance agreement was already high in the `layer8` and `all_layers` families, while sample RSA stayed near zero. One low-to-mid-layer feature, `layer8:feature13466`, was the top shared predictor in both families.
+- The strongest parcels sat in right visual and dorsal-attention cortex (top parcel `7Networks_RH_DorsAttn_Post_2`, r = 0.558 in the pooled family), pointing to broad stimulus-locked structure rather than high-level semantics.
 
-## Raw `shapessocial` Results
+Two smaller `shapessocial` subsets (2 runs with 610 samples, and 9 runs with 2,745 samples) were run earlier purely to validate pipeline execution and output writing. Their metrics are not interpreted.
 
-### Full-Runs Analysis
+## Cleaned `shapesphysical` Results
 
-The most interpretable completed result set is the raw `shapessocial` full-runs analysis at:
+### Cross-Model Comparison
 
-`structure_comparison/outputs/remote_experiment_l8_l13_l22_full_real/analysis_summary.json`
+**Table 2.** All-layers results for the cleaned `shapesphysical` analysis.
 
-This run used:
+| Model | LM target framing | Brain r | Brain R² | LM r | LM R² | Sample RSA | Feature-importance r |
+| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| Gemma 2 2B | final hidden state | 0.1700 | 0.0337 | 0.4898 | 0.0209 | 0.0670 | 0.9584 |
+| Gemma 2 9B | provisional hidden-state-style | 0.1693 | 0.0339 | 0.5659 | 0.2022 | 0.0185 | 0.9610 |
+| Llama 3.1 8B | provisional hidden-state-style | 0.1699 | 0.0350 | 0.6217 | 0.3925 | 0.0500 | 0.9086 |
 
-1. `59` runs
-2. `17,995` retained subject-run-TR samples
-3. transcript-derived predictor families from layers `8`, `13`, and `22`
-4. an `all_layers` pooled family
+The final-hidden-state framing is exact for Gemma 2 2B, which was rerun with a true final-hidden-state target. For the other two models it is provisional: their hidden-state-style summaries closely match the available held-out-SAE outputs but had not been rerun at the time of writing.
 
-The principal results were:
+Four points stand out:
 
-| Family | Brain mean test correlation | LM mean test correlation | Sample RSA | Feature-importance correlation |
-|---|---:|---:|---:|---:|
-| `layer8` | `0.173` | `0.233` | `0.0036` | `0.985` |
-| `layer13` | `0.219` | `0.171` | `0.0117` | `0.418` |
-| `layer22` | `0.223` | `0.367` | `-0.0615` | `0.849` |
-| `all_layers` | `0.272` | `0.360` | `0.0167` | `0.938` |
+1. Brain R² is positive for all three models, unlike the raw baseline. Confound cleaning made the brain-side fit interpretable.
+2. The three models are nearly tied on the brain side, clustering at brain r of about 0.17 and brain R² of about 0.034.
+3. The LM side separates the models clearly: Llama 3.1 8B, then Gemma 2 9B, then Gemma 2 2B.
+4. Feature-importance agreement stays between 0.909 and 0.961, while sample RSA stays between 0.019 and 0.067.
 
-### Main Observations From the Raw `shapessocial` Analysis
+### Gemma 2 2B Aggregation And Target Variants
 
-#### 1. The pooled predictor family performed best on the brain side.
+Gemma 2 2B was rerun under three specifications with the same 128-feature predictor basis, the same 48-run brain bundle, and the same cross-validation scheme.
 
-The strongest brain-side held-out correlation came from the `all_layers` family (`0.272`). This exceeded the layer-specific families, suggesting that predictive signal was distributed across multiple LM depths rather than being captured by a single layer alone.
+**Table 3.** Gemma 2 2B variants.
 
-#### 2. Later-layer LM targets were easier to predict.
+| Variant | Brain r | Brain R² | LM r | LM R² | Sample RSA | Feature-importance r |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| mass aggregation + held-out SAE targets | 0.1701 | 0.0340 | 0.4589 | -0.7917 | 0.0377 | 0.9607 |
+| average aggregation + held-out SAE targets | 0.1700 | 0.0337 | 0.4345 | 0.0458 | 0.0446 | 0.9244 |
+| average aggregation + final hidden state | 0.1700 | 0.0337 | 0.4898 | 0.0209 | 0.0670 | 0.9584 |
 
-The strongest LM-side result came from `layer22` (`0.367`), with the pooled family close behind (`0.360`). This suggests that later-layer held-out SAE targets are more systematically recoverable from the transcript-derived feature basis than earlier-layer targets.
+Moving from summed activation mass to per-TR averages fixed the negative LM R² without changing the brain fit. Switching the LM target to the final hidden state left the brain side untouched, kept LM R² positive, and raised both sample RSA and feature-importance agreement. The average-plus-final-hidden-state configuration is the reference Gemma 2 2B result.
 
-#### 3. Feature-importance agreement was much stronger than sample-geometry agreement.
+### Single-Layer Findings
 
-The most encouraging cross-system result in the raw `shapessocial` analysis was the high agreement in feature importance, especially for:
+The pooled family was the strongest brain-side family for every model. Best single-layer values:
 
-1. `layer8` (`0.985`)
-2. `layer22` (`0.849`)
-3. `all_layers` (`0.938`)
+| Model | Best brain layer | Brain r | Brain R² | Best LM layer | LM r | LM R² | Highest sample RSA | Highest feature-importance r |
+| --- | --- | ---: | ---: | --- | ---: | ---: | --- | --- |
+| Gemma 2 2B | 25 | 0.154 | 0.0305 | 17 | 0.389 | 0.0708 | layer 22 (0.0680) | layer 17 (0.986) |
+| Gemma 2 9B | 36 | 0.152 | 0.0302 | 21 | 0.705 | 0.316 | layer 36 (0.0963) | layer 27 (0.998) |
+| Llama 3.1 8B | 16 | 0.155 | 0.0298 | see note | | | layer 31 (0.0856) | |
 
-By contrast, sample-level RSA remained near zero in all families. This indicates that the same predictors tended to matter in both systems, but the fitted sample-to-sample geometry was not yet strongly aligned.
+Gemma 2 9B is the most internally coherent model: strong feature-importance agreement, the best non-anomalous LM recoverability, and the highest sample RSA in the project. Several Llama 3.1 8B LM-side layers are unusually strong relative to the brain side, so those values are reported cautiously pending an audit of the LM target construction rather than as evidence of model superiority.
 
-#### 4. The strongest parcels were concentrated in visual and dorsal-attention territory.
+### Anatomical Pattern
 
-For the raw full-runs analysis, top parcels frequently came from:
+The cleaned all-layers runs agree closely on their top parcels across all three models:
 
-1. right visual cortex
-2. right dorsal attention cortex
-3. additional occipital and attentional parcels
+1. `7Networks_LH_SomMot_2` (r about 0.695 to 0.697)
+2. `7Networks_RH_SomMot_1` (r about 0.686 to 0.689)
+3. `7Networks_RH_SomMot_2` (r about 0.648 to 0.651)
+4. `7Networks_LH_SomMot_1` (r about 0.578 to 0.582)
+5. left and right default-mode temporal parcels
+6. salience and ventral-attention parcels in frontal and parietal opercular cortex
 
-For example:
+This somatomotor-temporal pattern replaces the visual and dorsal-attention pattern of the raw baseline. The strong somatomotor component means stimulus-locked, lower-level structure still contributes to the fit, so the result is not read as a purely semantic language network. The shift away from the raw pattern is still evidence that cleaning removed some of the broad confounding structure.
 
-1. `layer8` top parcel: `7Networks_RH_Vis_2` (`r = 0.348`)
-2. `layer13` top parcel: `7Networks_RH_DorsAttn_Post_2` (`r = 0.464`)
-3. `layer22` top parcel: `7Networks_RH_DorsAttn_Post_2` (`r = 0.468`)
-4. `all_layers` top parcel: `7Networks_RH_DorsAttn_Post_2` (`r = 0.558`)
+### Feature Importance Versus Geometry
 
-This pattern suggests that, in the raw analysis, a substantial fraction of the recoverable signal may still reflect broad stimulus-locked structure rather than exclusively high-level semantic abstraction.
+Across raw and cleaned analyses and all three models, feature-importance agreement is far stronger than sample-level RSA. In the cleaned pooled families the former ranges from 0.909 to 0.961 and the latter from 0.019 to 0.067; even the strongest single-layer RSA (Gemma 2 9B layer 36, 0.0963) is modest. The brain and model fits therefore agree about which transcript-derived features matter much more than about the geometry of moment-by-moment representational states.
 
-#### 5. A small set of predictors dominated the shared explanatory structure.
+### Model Comparison
 
-The most prominent shared predictor in the pooled family was:
+Gemma 2 9B improves on Gemma 2 2B on the LM side, and Llama 3.1 8B is stronger still in the current presentation, yet all three models remain nearly tied on brain prediction. Either the predictor basis already captures what parcel-level prediction can use, or the current brain targets and sample size are not sensitive enough to separate models. The data cannot yet distinguish these explanations, but they do show that better internal recoverability does not automatically buy stronger brain alignment.
 
-1. `layer8:feature13466`
+## Conclusions
 
-This feature appeared as the top shared predictor in both the `layer8` family and the `all_layers` family, indicating that at least one low- to mid-layer transcript-derived feature was exerting strong influence on both brain and LM predictions.
+1. The structure-comparison framework recovers non-trivial signal: positive cleaned brain correlations, positive cleaned brain R², and high feature-importance agreement across models.
+2. Preprocessing quality matters. The raw baseline had higher correlations but uninterpretable R² and a less convincing anatomy; the cleaned analysis is lower but trustworthy.
+3. The strongest cross-system alignment lies in feature salience rather than sample geometry. This holds across raw and cleaned analyses and across all three models.
+4. Model scaling improves the LM-side fit more clearly than the brain-side fit.
+5. Average TR aggregation is more defensible than summed activation mass for this comparison.
 
-### Interpretation of the Raw `shapessocial` Results
+Together these support a bounded claim: transcript-grounded interpretable features provide a partially shared explanatory basis across brains and language models, without evidence of a fully matched representational geometry. The remaining `shapesphysical` runs, once cleaned, are the natural test of whether these conclusions hold under the complete dataset.
 
-The raw `shapessocial` results show that the structure-comparison framework is capable of recovering nontrivial signal. In particular:
+## Output Artifacts
 
-1. brain prediction is weak but not absent
-2. LM prediction is moderate for several target sets
-3. feature-importance structure aligns much more strongly than sample geometry
-
-However, the raw analysis is also limited in important ways:
-
-1. brain `R^2` values were massively negative across families
-2. the data had not yet undergone full confound-cleaned preprocessing
-3. the strongest parcels were concentrated in visual and attentional systems
-4. representational geometry alignment remained near zero
-
-Accordingly, these raw results should be treated as proof that the overall comparison framework can recover structure, but not yet as the strongest evidence for final thesis claims.
-
-## Intermediate Validation Runs on `shapessocial`
-
-Two earlier validation runs help contextualize the raw full analysis:
-
-1. `partial_real`: `2` runs, `610` brain samples
-2. `current_real`: `9` runs, `2,745` brain samples
-
-These intermediate runs served primarily to validate:
-
-1. pipeline execution
-2. brain-target construction
-3. family-level output writing
-4. the stability of model-side results
-
-As expected, the brain-side metrics varied substantially across these smaller subsets and should not be interpreted as substantive scientific findings. Their main role was engineering validation rather than final inference.
-
-## Raw `shapesphysical` Probe Status
-
-There is one earlier raw `shapesphysical` output directory:
-
-`structure_comparison/outputs/remote_experiment_l8_l13_l22_shapesphysical_probe`
-
-However, this probe should not be treated as a completed raw `shapesphysical` result set. It produced:
-
-1. TR-level feature matrices
-2. TR-level LM target matrices
-3. transcript alignment summaries
-
-It did not produce the full family-level model outputs needed for quantitative interpretation, such as:
-
-1. `brain_cv_summary.json`
-2. `lm_cv_summary.json`
-3. `summary.json`
-
-Accordingly, the raw `shapesphysical` probe is best understood as a stimulus-adaptation and engineering checkpoint rather than a finished empirical result.
-
-## `shapesphysical` Results Status
-
-### Cleaned Brain Data Availability
-
-For `shapesphysical`, the current state is stronger in preprocessing quality but weaker in total sample coverage because preprocessing is still running in batches.
-
-The currently available cleaned partial bundle is:
-
-`structure_comparison/brain_targets/shapesphysical_schaefer200_cleaned_batch00.npz`
-
-Its summary indicates:
-
-1. `8` observed runs
-2. `59` expected runs in the full dataset
-3. `2,424` total subject-run-TR samples before censor exclusion at model-fit time
-4. `2,368` retained uncensored samples
-5. `200` parcels in the current cleaned bundle
-6. mean censor fraction of approximately `0.023`
-
-This means that a preliminary cleaned-brain `shapesphysical` analysis is already feasible, even though the full cleaned dataset is not yet complete.
-
-### Ongoing Preprocessing
-
-The remaining `shapesphysical` `fMRIPrep` preprocessing is running in sequential batches. At the time of writing:
-
-1. `batch_00` completed successfully
-2. `batch_01` is running
-3. the queue watcher is active for later batches
-
-This is methodologically important because the final cleaned `shapesphysical` result set will be substantially stronger than the current `8`-run preliminary bundle once all batches complete.
-
-## Updated Model Runs for `shapesphysical`
-
-The current intended comparison set for cleaned `shapesphysical` analyses is:
-
-1. `Gemma-2-2B`
-2. `Gemma-2-9B`
-3. `Llama-3.1-8B`
-
-At present:
-
-1. `gemma_2_2b` is already local and ready
-2. `gemma_2_9b` is still copying from the VM
-3. `llama_3_1_8b` is still pending after the Gemma copy
-
-The locally available updated run is:
-
-`structure_comparison/remote_runs/final_output_retry/gemma_2_2b`
-
-## Preliminary Cleaned `shapesphysical` Analysis
-
-A preliminary cleaned `shapesphysical` analysis has been launched against:
-
-1. the cleaned `batch_00` brain bundle
-2. the updated `gemma_2_2b` transcript-first feature run
-
-The output location is:
-
-`structure_comparison/outputs/final_output_retry_gemma_2_2b_shapesphysical_cleaned_batch00_prelim`
-
-Because this run is still in progress, it is not yet interpreted as a result in this draft section. Once it finishes, it will provide the first direct answer to the question of whether cleaned `shapesphysical` produces stronger and more trustworthy structure-comparison results than raw `shapessocial`.
-
-## Provisional Conclusion
-
-The current empirical picture is:
-
-1. The raw `shapessocial` analysis demonstrates that the transcript-first structure-comparison pipeline can recover meaningful predictive signal and strong cross-system feature-importance agreement.
-2. The raw `shapessocial` analysis also shows clear limitations, especially weak brain `R^2`, near-zero sample RSA, and likely contamination from broad stimulus-driven variance.
-3. The cleaned `shapesphysical` pipeline is now operational and has already produced an initial `8`-run cleaned brain bundle suitable for preliminary model fitting.
-4. The strongest final thesis claims should therefore depend on the cleaned `shapesphysical` results, not the earlier raw `shapessocial` analyses alone.
-
-In other words, the raw `shapessocial` results are best understood as a successful proof of concept, while the cleaned `shapesphysical` analyses are the results that will determine the final strength of the thesis argument.
+For each model family the analysis writes `brain_cv_summary.json`, `lm_cv_summary.json`, `brain_final_model.npz`, `lm_final_model.npz`, `brain_lm_weight_similarity.npz`, `sample_rsa.json`, `feature_importance_summary.json`, and `summary.json` under the configured output root. The notebooks in [`structure_comparison/notebooks/`](../../structure_comparison/notebooks/) read those files to produce the comparison tables above.

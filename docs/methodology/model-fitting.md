@@ -372,9 +372,9 @@ For each model family, the workflow writes:
 
 These outputs support both quantitative reporting and later visualization.
 
-## Recommended Thesis Wording
+## Summary Of The Methodological Claim
 
-If this section is integrated directly into the thesis, the core methodological claim can be framed as follows:
+The core methodological claim can be stated as follows:
 
 1. transcript-derived interpretable LM features were used as a common explanatory basis
 2. the same feature basis was fit to both cleaned brain targets and held-out LM targets

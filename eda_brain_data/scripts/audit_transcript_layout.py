@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+"""Audit that each story directory contains the expected transcript artifacts."""
+
 import argparse
 from pathlib import Path
 

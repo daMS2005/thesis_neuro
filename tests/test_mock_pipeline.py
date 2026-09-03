@@ -1,3 +1,5 @@
+"""Tests that the mock extraction pipeline writes the artifact schema without model dependencies."""
+
 from __future__ import annotations
 
 import json

@@ -1,3 +1,5 @@
+"""Log-probability scoring of answer choices for a single benchmark item."""
+
 from __future__ import annotations
 
 from typing import Any

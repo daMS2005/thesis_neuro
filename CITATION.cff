@@ -5,7 +5,23 @@ type: software
 authors:
   - family-names: "Mora Soler"
     given-names: "Daniel Arturo"
+abstract: >-
+  Research software for testing whether transcript-grounded sparse-autoencoder
+  features carry similar predictive structure in language models and in human
+  fMRI responses during naturalistic story comprehension. The package extracts
+  SAE features from Gemma 2 and Llama 3.1, aligns them to the fMRI repetition-time
+  grid, fits matched ridge encoders to cortical parcels and to language-model
+  targets, and compares the fitted structures through learned weights, feature
+  importance, and representational similarity.
+keywords:
+  - neuroscience
+  - fMRI
+  - sparse autoencoders
+  - mechanistic interpretability
+  - language models
+  - encoding models
 repository-code: "https://github.com/daMS2005/thesis_neuro"
+url: "https://github.com/daMS2005/thesis_neuro"
 version: 0.2.0
 date-released: 2026-09-03
 license: MIT

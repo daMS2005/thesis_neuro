@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+"""All-layers analysis with lagged predictors against final-hidden-state LM targets."""
+
 from __future__ import annotations
 
 import argparse

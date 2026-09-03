@@ -1,3 +1,5 @@
+"""Run an all-layers-only structure comparison using average TR activations."""
+
 from __future__ import annotations
 
 import argparse

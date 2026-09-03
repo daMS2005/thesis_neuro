@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+"""Render a story-binned RSA heatmap from saved final-model predictions."""
+
 from __future__ import annotations
 
 import argparse

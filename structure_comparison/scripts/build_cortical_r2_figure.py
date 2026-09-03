@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+"""Render a Schaefer-parcel R^2 map on cortical surfaces from a brain CV summary."""
+
 from __future__ import annotations
 
 import argparse

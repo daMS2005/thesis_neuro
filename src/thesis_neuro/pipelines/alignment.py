@@ -1,3 +1,5 @@
+"""Counterfactual token and span alignment of selected features within transcript windows."""
+
 from __future__ import annotations
 
 import time

@@ -1,3 +1,5 @@
+"""Document sources: streaming Dolma access and local transcript directories."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass

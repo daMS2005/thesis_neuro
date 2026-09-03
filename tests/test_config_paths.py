@@ -1,3 +1,5 @@
+"""Tests for portable root resolution and credential redaction in config snapshots."""
+
 from __future__ import annotations
 
 from pathlib import Path

@@ -1,3 +1,5 @@
+"""Path resolution for the analysis, transcript, and Dolma inputs read by the dashboard."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass

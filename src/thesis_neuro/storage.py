@@ -1,3 +1,5 @@
+"""Append-only JSONL artifact store with manifest writing."""
+
 from __future__ import annotations
 
 import json

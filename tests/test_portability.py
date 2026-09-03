@@ -1,3 +1,5 @@
+"""Tests that public source carries no personal or cluster-specific paths."""
+
 from __future__ import annotations
 
 import re

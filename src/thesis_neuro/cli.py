@@ -1,3 +1,5 @@
+"""Argument parsing and command dispatch for the ``thesis-neuro`` CLI."""
+
 from __future__ import annotations
 
 import argparse

@@ -1,3 +1,5 @@
+"""Command line entrypoint for the exploratory benchmark track."""
+
 from __future__ import annotations
 
 import argparse

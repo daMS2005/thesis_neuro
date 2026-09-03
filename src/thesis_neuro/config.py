@@ -1,3 +1,5 @@
+"""Typed run configuration assembled from YAML, environment variables, and CLI overrides."""
+
 from __future__ import annotations
 
 import os
