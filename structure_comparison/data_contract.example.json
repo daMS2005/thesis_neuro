@@ -1,0 +1,23 @@
+{
+  "feature_run_dir": "data/feature-runs/example-run",
+  "brain_targets_bundle": {
+    "path": "outputs/brain/shapessocial_schaefer200.npz",
+    "required_keys": [
+      "values",
+      "sample_ids",
+      "subject_ids",
+      "run_ids",
+      "tr_indices",
+      "target_names"
+    ]
+  },
+  "local_transcript_assets": {
+    "root": "data/transcripts/shapessocial",
+    "required_files": [
+      "shapessocial_transcript.txt",
+      "shapessocial_words.tsv",
+      "shapessocial_tr_aligned.tsv",
+      "metadata.json"
+    ]
+  }
+}

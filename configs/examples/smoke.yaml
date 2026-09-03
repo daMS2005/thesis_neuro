@@ -1,0 +1,30 @@
+model:
+  base_model_id: google/gemma-2-2b
+  scope_release: gemma-scope-2b-pt-res-canonical
+  scope_width: width_16k
+  layer_selection: [0]
+
+dataset:
+  local_text_path: examples/text/smoke.txt
+  max_documents: 1
+  max_windows: 1
+
+transcripts:
+  root_dir: data/transcripts
+  max_files: 1
+
+tokenization:
+  seq_len: 32
+  add_special_tokens: false
+
+latents:
+  token_top_k: 16
+  pooled_top_k: 16
+  top_n_logits: 3
+
+output:
+  dir: outputs/smoke
+  write_manifest: true
+
+run:
+  seed: 42

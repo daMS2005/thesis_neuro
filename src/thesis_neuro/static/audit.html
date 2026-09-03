@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Transcript Audit</title>
+  <link rel="stylesheet" href="/static/audit.css">
+</head>
+<body>
+  <div class="layout">
+    <section class="panel">
+      <h2>Navigator</h2>
+      <div id="toolbar" class="toolbar"></div>
+      <div class="subsection">
+        <div class="section-head">
+          <h3>Transcript Top Features</h3>
+          <div id="feature-list-summary" class="muted small"></div>
+        </div>
+        <div id="top-features" class="top-features"></div>
+      </div>
+    </section>
+    <section class="panel">
+      <h2>Transcript Audit Surface</h2>
+      <div id="status" class="muted">Loading...</div>
+      <div id="stats" class="stats"></div>
+      <div id="surface" class="surface"></div>
+      <div class="subsection">
+        <h3>Sentence Buttons</h3>
+        <div id="sentence-buttons" class="sentence-row"></div>
+      </div>
+      <div class="subsection">
+        <h3>Interactive Tokens</h3>
+        <div id="token-buttons" class="token-button-grid"></div>
+      </div>
+      <div class="subsection">
+        <h3>Token Table</h3>
+        <div id="token-table" class="token-table"></div>
+      </div>
+    </section>
+    <section class="panel">
+      <h2>Evidence Stack</h2>
+      <div id="selection-summary" class="muted"></div>
+      <div id="source-note" class="muted"></div>
+      <div id="probe-status-box" class="subsection"></div>
+      <div id="evidence-stack" class="evidence-stack"></div>
+    </section>
+  </div>
+  <script src="/static/audit.js"></script>
+</body>
+</html>

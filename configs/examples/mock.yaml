@@ -1,0 +1,27 @@
+model:
+  layer_selection: [0]
+
+dataset:
+  local_text_path: examples/text/smoke.txt
+  max_documents: 1
+  max_windows: 1
+
+transcripts:
+  root_dir: data/transcripts
+  max_files: 1
+
+tokenization:
+  seq_len: 32
+  add_special_tokens: false
+
+latents:
+  token_top_k: 4
+  pooled_top_k: 4
+  top_n_logits: 3
+
+output:
+  dir: outputs/mock-schema
+  write_manifest: true
+
+run:
+  seed: 42
