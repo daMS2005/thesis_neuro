@@ -11,9 +11,21 @@ import yaml
 from dotenv import load_dotenv
 
 from thesis_neuro.paths import (
+    DEFAULT_RUN_DIR,
     default_config_path,
     resolve_data_path,
     resolve_output_path,
+)
+
+ALIGNMENT_METHODS = frozenset(
+    {
+        "deletion_retokenize",
+        "pad_eos_mask",
+        "delete_sentence_retokenize",
+        "pad_sentence_mask",
+        "delete_clause_retokenize",
+        "pad_clause_mask",
+    }
 )
 
 
@@ -66,9 +78,6 @@ class LatentConfig:
     pooled_top_k: int
     top_n_logits: int
 
-    @property
-    def top_k(self) -> int:
-        return self.token_top_k
 
 
 @dataclass(slots=True)
@@ -79,6 +88,7 @@ class FeatureSelectionConfig:
     top_by_sentence_pool: int
     final_top_per_layer: int
     top_examples_per_feature: int
+    example_context_tokens: int
 
 
 @dataclass(slots=True)
@@ -135,7 +145,8 @@ class ProbingConfig:
     enable_steering: bool
     steering_strengths: list[float]
     stop_confidence: float
-    max_batch_size: int
+    output_dir: str
+    no_gain_threshold: float
 
 
 @dataclass(slots=True)
@@ -258,6 +269,9 @@ def validate_config(config: AppConfig) -> None:
         raise ValueError("alignment.top_span_alignments must be positive")
     if not config.alignment.methods:
         raise ValueError("alignment.methods must not be empty")
+    unknown_methods = sorted(set(config.alignment.methods) - ALIGNMENT_METHODS)
+    if unknown_methods:
+        raise ValueError(f"Unknown alignment.methods {unknown_methods}; choose from {sorted(ALIGNMENT_METHODS)}")
     if config.judge.timeout_seconds <= 0:
         raise ValueError("judge.timeout_seconds must be positive")
     if config.judge.max_retries < 0:
@@ -270,8 +284,8 @@ def validate_config(config: AppConfig) -> None:
         raise ValueError("probing.synthetic_probes_per_round must be positive")
     if config.probing.real_edits_per_round <= 0:
         raise ValueError("probing.real_edits_per_round must be positive")
-    if config.probing.max_batch_size <= 0:
-        raise ValueError("probing.max_batch_size must be positive")
+    if config.probing.no_gain_threshold < 0:
+        raise ValueError("probing.no_gain_threshold must be non-negative")
     if not 0.0 <= config.probing.stop_confidence <= 1.0:
         raise ValueError("probing.stop_confidence must be between 0 and 1")
     if config.probing.enable_steering and not config.probing.steering_strengths:
@@ -348,22 +362,21 @@ def _parse_transcript_config(section: dict[str, Any]) -> TranscriptConfig:
     return TranscriptConfig(
         root_dir=str(resolve_data_path(root_dir)),
         glob=section.get("glob", "*/*_transcript.txt"),
-        max_files=int(section.get("max_files", 100)),
+        max_files=int(section.get("max_files", 10)),
     )
 
 
 def _parse_tokenization_config(section: dict[str, Any]) -> TokenizationConfig:
     return TokenizationConfig(
-        seq_len=int(section.get("seq_len", 256)),
+        seq_len=int(section.get("seq_len", 2048)),
         add_special_tokens=bool(section.get("add_special_tokens", False)),
     )
 
 
 def _parse_latents_config(section: dict[str, Any]) -> LatentConfig:
-    fallback_top_k = int(section.get("top_k", 256))
     return LatentConfig(
-        token_top_k=int(section.get("token_top_k", fallback_top_k)),
-        pooled_top_k=int(section.get("pooled_top_k", fallback_top_k)),
+        token_top_k=int(section.get("token_top_k", 256)),
+        pooled_top_k=int(section.get("pooled_top_k", 256)),
         top_n_logits=int(section.get("top_n_logits", 10)),
     )
 
@@ -376,21 +389,12 @@ def _parse_feature_selection_config(section: dict[str, Any]) -> FeatureSelection
         top_by_sentence_pool=int(section.get("top_by_sentence_pool", 128)),
         final_top_per_layer=int(section.get("final_top_per_layer", 256)),
         top_examples_per_feature=int(section.get("top_examples_per_feature", 5)),
+        example_context_tokens=int(section.get("example_context_tokens", 4)),
     )
 
 
 def _parse_alignment_config(section: dict[str, Any]) -> AlignmentConfig:
-    methods = section.get(
-        "methods",
-        [
-            "deletion_retokenize",
-            "pad_eos_mask",
-            "delete_sentence_retokenize",
-            "pad_sentence_mask",
-            "delete_clause_retokenize",
-            "pad_clause_mask",
-        ],
-    )
+    methods = section.get("methods", ["deletion_retokenize", "pad_sentence_mask", "delete_clause_retokenize"])
     return AlignmentConfig(
         top_features_per_window=int(section.get("top_features_per_window", 32)),
         top_windows_per_feature=int(section.get("top_windows_per_feature", 3)),
@@ -456,13 +460,14 @@ def _parse_probing_config(section: dict[str, Any]) -> ProbingConfig:
         enable_steering=bool(section.get("enable_steering", True)),
         steering_strengths=[float(value) for value in strengths],
         stop_confidence=float(section.get("stop_confidence", 0.85)),
-        max_batch_size=int(section.get("max_batch_size", 8)),
+        output_dir=str(section.get("output_dir", "outputs/probe_runs")),
+        no_gain_threshold=float(section.get("no_gain_threshold", 0.05)),
     )
 
 
 def _parse_output_config(section: dict[str, Any]) -> OutputConfig:
     return OutputConfig(
-        dir=str(resolve_output_path(section.get("dir", "outputs/default_run"))),
+        dir=str(resolve_output_path(section.get("dir", DEFAULT_RUN_DIR))),
         write_manifest=bool(section.get("write_manifest", True)),
         write_summary=bool(section.get("write_summary", False)),
     )

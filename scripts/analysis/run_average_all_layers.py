@@ -19,7 +19,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--brain-targets-npz", required=True)
     parser.add_argument("--transcript-root", required=True)
     parser.add_argument("--output-dir", required=True)
-    parser.add_argument("--stimulus-id", default="shapesphysical")
+    parser.add_argument("--stimulus-id", required=True)
     parser.add_argument("--lm-targets-per-layer", type=int, default=8)
     parser.add_argument("--predictor-top-k", type=int, default=None)
     parser.add_argument("--lm-folds", type=int, default=5)

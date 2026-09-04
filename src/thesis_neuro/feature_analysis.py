@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import heapq
-import resource
+import sys
 from collections import defaultdict
 from datetime import datetime, timezone
 from pathlib import Path
@@ -13,7 +13,6 @@ from typing import Any
 import numpy as np
 
 from thesis_neuro.config import AppConfig
-from thesis_neuro.judge import AsyncOpenAIJudge
 from thesis_neuro.storage import JsonlArtifactStore
 
 ANALYSIS_STAGES = (
@@ -373,6 +372,8 @@ class FeatureConceptAnalysisPipeline:
         self._log(stage, status="done", rows=len(selected_rows))
 
     async def _run_judge_async(self, judge_input_rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        from thesis_neuro.judge import AsyncOpenAIJudge
+
         judge = AsyncOpenAIJudge(
             api_key=self.config.env.openai_api_key or "",
             model=self.config.judge.model,
@@ -577,13 +578,13 @@ class FeatureConceptAnalysisPipeline:
 
     @staticmethod
     def _push_top_context(
-        heap: list[tuple[float, int, dict[str, Any]]],
+        heap: list[tuple[float, str, dict[str, Any]]],
         score: float,
         item: dict[str, Any],
         limit: int,
     ) -> None:
-        sample_hash = hash(str(item.get("sample_id", "")))
-        entry = (float(score), sample_hash, item)
+        # Ties break on the sample id string so context selection is reproducible across processes.
+        entry = (float(score), str(item.get("sample_id", "")), item)
         if len(heap) < limit:
             heapq.heappush(heap, entry)
             return
@@ -592,9 +593,9 @@ class FeatureConceptAnalysisPipeline:
 
     def _select_dolma_contexts(
         self,
-        top_total_heap: list[tuple[float, int, dict[str, Any]]],
-        top_peak_heap: list[tuple[float, int, dict[str, Any]]],
-        top_fraction_heap: list[tuple[float, int, dict[str, Any]]],
+        top_total_heap: list[tuple[float, str, dict[str, Any]]],
+        top_peak_heap: list[tuple[float, str, dict[str, Any]]],
+        top_fraction_heap: list[tuple[float, str, dict[str, Any]]],
         top_document: dict[str, dict[str, Any]],
         limit: int,
     ) -> list[dict[str, Any]]:
@@ -692,7 +693,7 @@ class FeatureConceptAnalysisPipeline:
             )
             return True
 
-        if ranked:
+        if ranked and len(selected) < limit:
             add(ranked[0], "max_activation")
         for example in ranked:
             stimulus_id = example.get("stimulus_id")
@@ -792,7 +793,11 @@ class FeatureConceptAnalysisPipeline:
 
     def _log(self, event: str, **payload: Any) -> None:
         try:
-            payload["rss_mb"] = round(resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / 1024.0, 1)
+            import resource
+
+            # ru_maxrss is bytes on macOS and kilobytes on Linux.
+            divisor = 1024.0**2 if sys.platform == "darwin" else 1024.0
+            payload["rss_mb"] = round(resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / divisor, 1)
         except Exception:
             pass
         print(f"[analyze-features] {event}: {payload}")

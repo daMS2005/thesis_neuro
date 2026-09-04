@@ -41,7 +41,7 @@ def git_output(cmd: list[str], cwd: Path) -> str:
 
 
 def ensure_annex_ready(dataset_dir: Path):
-    dbdir = Path("/tmp") / f"git-annex-db-{dataset_dir.name}"
+    dbdir = Path(tempfile.gettempdir()) / f"git-annex-db-{dataset_dir.name}"
     run(["git", "config", "annex.dbdir", str(dbdir)], cwd=dataset_dir)
     try:
         git_output(["git", "annex", "info", "--fast"], cwd=dataset_dir)
@@ -450,7 +450,7 @@ def process_target(target: TranscriptTarget, output_dir: Path, model_name: str, 
         "slug": target.slug,
         "dataset_dir": str(target.dataset_dir),
         "audio_source": str(audio_path),
-        "audio_copy": str(audio_out),
+        "audio_copy": str(audio_out.relative_to(target_dir.parent)) if audio_out.is_relative_to(target_dir.parent) else str(audio_out),
         "task": target.task,
         "transcript_method": method,
         "tr_s": timing["tr_s"],

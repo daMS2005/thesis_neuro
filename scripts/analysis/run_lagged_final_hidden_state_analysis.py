@@ -54,10 +54,11 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--brain-targets-npz", required=True)
     parser.add_argument("--transcript-root", required=True)
     parser.add_argument("--config-path", default=str(default_config_path().parent / "examples" / "full-extraction.yaml"))
-    parser.add_argument("--stimulus-id", default="shapesphysical")
+    parser.add_argument("--stimulus-id", required=True)
     parser.add_argument("--model-id", required=True)
     parser.add_argument("--scope-release", required=True)
     parser.add_argument("--scope-width", default="width_16k")
+    parser.add_argument("--local-files-only", action="store_true", help="Force Hugging Face loads to use cached local files only.")
     parser.add_argument("--token-layer", type=int, required=True)
     parser.add_argument("--layer-selection", nargs="+", type=int, required=True)
     parser.add_argument("--predictor-top-k", type=int, default=None)
@@ -137,9 +138,6 @@ def build_final_hidden_state_targets(
         stimulus_onset_s=float(metadata.get("stimulus_onset_s", 0.0)),
     )
 
-    os.environ.setdefault("HF_LOCAL_FILES_ONLY", "1")
-    os.environ.setdefault("TORCH_DEVICE", "mps")
-    os.environ.setdefault("TORCH_DTYPE", "float16")
     config = load_app_config(config_path)
     config.model.base_model_id = model_id
     config.model.scope_release = scope_release
@@ -202,6 +200,8 @@ def build_final_hidden_state_targets(
 
 def main() -> int:
     args = build_parser().parse_args()
+    if args.local_files_only:
+        os.environ["HF_LOCAL_FILES_ONLY"] = "1"
 
     feature_run_dir = Path(args.feature_run_dir)
     output_dir = Path(args.output_dir)

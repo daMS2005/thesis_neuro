@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -42,3 +43,29 @@ def validate_probe_report(report: dict[str, Any]) -> None:
 
 
 __all__ = ["ProbeRunPaths", "ProbeTarget", "validate_probe_report"]
+
+
+def slugify(value: str) -> str:
+    """Lower-case a label and collapse non-alphanumerics so it is safe as a directory name."""
+
+    return re.sub(r"[^a-z0-9]+", "_", str(value).lower()).strip("_") or "default"
+
+
+def probe_run_paths(root: Path, bundle_id: str, script_id: str | None, layer: int, feature_id: int) -> ProbeRunPaths:
+    """Build the artifact layout for one probe run.
+
+    Both the probing runner and the audit dashboard use this so that a run started from
+    the dashboard is found again under ``<root>/<bundle>/<script>/layer_<n>/feature_<id>``.
+    """
+
+    script_segment = slugify(script_id) if script_id else "all_scripts"
+    run_root = root / slugify(bundle_id) / script_segment / f"layer_{int(layer)}" / f"feature_{int(feature_id)}"
+    return ProbeRunPaths(
+        root=run_root,
+        evidence_path=run_root / "feature_probe_evidence.json",
+        rounds_path=run_root / "feature_probe_rounds.jsonl",
+        tests_path=run_root / "feature_probe_tests.jsonl",
+        steering_path=run_root / "feature_probe_steering.jsonl",
+        report_path=run_root / "feature_probe_report.json",
+        manifest_path=run_root / "manifest.json",
+    )

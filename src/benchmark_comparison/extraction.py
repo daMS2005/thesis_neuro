@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import json
 from pathlib import Path
 from typing import Any
 
@@ -12,6 +11,7 @@ from benchmark_comparison.items import BenchmarkItem, load_items, write_jsonl
 from benchmark_comparison.registry import ModelRegistryEntry
 from benchmark_comparison.scoring import score_item_choices
 from structure_comparison.artifacts import counts_by_layer, load_predictor_feature_keys
+from structure_comparison.utils import feature_name, write_json
 from thesis_neuro.config import load_app_config
 from thesis_neuro.models import GemmaModelAdapter
 from thesis_neuro.paths import default_config_path, repository_root
@@ -28,7 +28,7 @@ def extract_benchmark_features(
     items = load_items(items_path)
     selected_keys = load_predictor_feature_keys(model_entry.selected_features_path, top_k=top_k)
     selected_layers = tuple(sorted({layer for layer, _feature_id in selected_keys}))
-    feature_names = np.asarray([f"layer{layer}:feature{feature_id}" for layer, feature_id in selected_keys], dtype=str)
+    feature_names = np.asarray([feature_name((layer, feature_id)) for layer, feature_id in selected_keys], dtype=str)
     feature_layers = np.asarray([layer for layer, _feature_id in selected_keys], dtype=int)
 
     feature_index_by_layer: dict[int, list[tuple[int, int]]] = {}
@@ -159,7 +159,7 @@ def extract_benchmark_features(
             "item_scores": str(intermediates_dir / "item_scores.jsonl"),
         },
     }
-    _write_json(intermediates_dir / "item_feature_summary.json", summary)
+    write_json(intermediates_dir / "item_feature_summary.json", summary)
     return summary
 
 
@@ -248,7 +248,3 @@ def _counts(values: list[str]) -> dict[str, int]:
     for value in values:
         counts[value] = counts.get(value, 0) + 1
     return counts
-
-
-def _write_json(path: Path, payload: dict[str, Any]) -> None:
-    path.write_text(json.dumps(payload, indent=2), encoding="utf-8")

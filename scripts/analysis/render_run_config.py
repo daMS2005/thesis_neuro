@@ -10,9 +10,6 @@ from pathlib import Path
 
 import yaml
 from dotenv import load_dotenv
-from huggingface_hub import HfApi
-from sae_lens.loading.pretrained_saes_directory import get_pretrained_saes_directory
-from transformers import AutoConfig
 
 DEFAULT_LAYER_FRACTIONS = (0.16, 0.30, 0.50, 0.65, 0.85, 0.96)
 
@@ -76,6 +73,9 @@ def parse_registered_layer_sae_id(sae_id: str, scope_width: str) -> int | None:
 
 
 def discover_sae_layers(scope_release: str, repo_id: str, scope_width: str, token: str | None) -> list[int]:
+    from huggingface_hub import HfApi
+    from sae_lens.loading.pretrained_saes_directory import get_pretrained_saes_directory
+
     directory = get_pretrained_saes_directory()
     if scope_release in directory:
         layers: set[int] = set()
@@ -114,6 +114,8 @@ def main() -> None:
 
     hf_token = os.getenv("HF_TOKEN")
     local_only = os.getenv("HF_LOCAL_FILES_ONLY", "").strip().lower() in {"1", "true", "yes", "on"}
+
+    from transformers import AutoConfig
 
     model_config = AutoConfig.from_pretrained(
         args.model_id,

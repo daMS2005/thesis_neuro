@@ -122,7 +122,14 @@ class FeatureAlignmentPipeline:
 
     def _group_records(self, records: Any) -> dict[tuple[str, int], dict[str, Any]]:
         grouped: dict[tuple[str, int], dict[str, Any]] = {}
+        required = ("sample_id", "model_id", "scope_release", "layer", "window_token_ids", "window_tokens", "text", "window_start", "window_end", "provenance")
         for record in records:
+            missing = [key for key in required if key not in record]
+            if missing:
+                raise ValueError(
+                    f"Paired record is missing {missing}; align-features needs the full transcript_paired_records.jsonl, "
+                    "not the slimmed .minimal variant."
+                )
             key = (record["sample_id"], int(record["layer"]))
             group = grouped.setdefault(
                 key,
@@ -578,13 +585,13 @@ class FeatureAlignmentPipeline:
         latents = self.sae.encode_layer(layer_idx, residual).squeeze(0).detach().to("cpu")
         totals: dict[int, float] = {}
         for feature_id in feature_ids:
-            if feature_id >= latents.shape[-1]:
+            if feature_id < 0 or feature_id >= latents.shape[-1]:
                 totals[feature_id] = 0.0
                 continue
             totals[feature_id] = float(latents[:, feature_id].clamp_min(0).sum().item())
         return {
             "feature_totals": totals,
-            "logits": outputs.logits[0].detach().to("cpu"),
+            "logits": outputs.logits[0].detach(),  # kept on device; only two scalars are read per ablation
         }
 
     def _run_single_feature_window(
@@ -611,7 +618,7 @@ class FeatureAlignmentPipeline:
         return {
             "feature_total": float(token_values.sum().item()),
             "token_values": token_values,
-            "logits": outputs.logits[0].detach().to("cpu"),
+            "logits": outputs.logits[0].detach(),
         }
 
     def _ablate_range_ids(

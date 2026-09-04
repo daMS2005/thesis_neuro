@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import warnings
 from pathlib import Path
 from typing import Any, Iterable
 
@@ -170,10 +171,23 @@ def run_grouped_ridge_cv(
     alpha_grid: Iterable[float],
     family_name: str,
 ) -> dict[str, Any]:
+    """Leave-one-group-out ridge evaluation with alpha chosen by an inner group-wise loop.
+
+    Groups are typically ``subject:run``. Because every run of a stimulus shares the same
+    predictor time series, held-out folds measure generalization to new recordings of the same
+    stimulus, not to unseen stimulus time points.
+    """
+
+    if x.ndim != 2 or y.ndim != 2 or x.shape[0] != y.shape[0]:
+        raise ValueError(f"{family_name}: X {x.shape} and Y {y.shape} must be 2D with matching rows.")
+    if not (np.all(np.isfinite(x)) and np.all(np.isfinite(y))):
+        raise ValueError(f"{family_name}: X and Y must be finite.")
     unique_groups = np.unique(groups)
     if unique_groups.size < 2:
         raise ValueError(f"{family_name}: need at least two groups for evaluation.")
     alpha_values = [float(value) for value in alpha_grid]
+    if not alpha_values or any(not np.isfinite(value) or value <= 0 for value in alpha_values):
+        raise ValueError(f"{family_name}: alpha grid must be non-empty, finite, and positive.")
     per_target_correlations: list[np.ndarray] = []
     per_target_r2_scores: list[np.ndarray] = []
     outer_folds: list[dict[str, Any]] = []
@@ -239,6 +253,7 @@ def select_alpha_with_inner_cv(
 ) -> float:
     unique_groups = np.unique(groups)
     if unique_groups.size < 2:
+        warnings.warn("Fewer than two groups in the training split; using the smallest alpha without inner CV.", stacklevel=2)
         return float(alpha_grid[0])
     best_alpha = float(alpha_grid[0])
     best_score = -np.inf
@@ -265,6 +280,8 @@ def select_alpha_with_inner_cv(
 
 
 def fit_final_model(x: np.ndarray, y: np.ndarray, alpha: float, family_name: str) -> dict[str, np.ndarray]:
+    """Fit on all samples. The returned predictions are in-sample and feed the weight and RSA comparisons."""
+
     if x.shape[0] != y.shape[0]:
         raise ValueError(f"{family_name}: X and Y have different sample counts.")
     return fit_ridge_with_standardization(x_train=x, y_train=y, x_eval=x, alpha=alpha)

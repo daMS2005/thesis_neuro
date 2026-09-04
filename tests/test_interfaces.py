@@ -65,8 +65,10 @@ def test_probe_schema_import_does_not_require_torch() -> None:
             "import sys; import thesis_neuro.probes.schema; assert 'torch' not in sys.modules",
         ],
         check=False,
+        capture_output=True,
+        text=True,
     )
-    assert result.returncode == 0
+    assert result.returncode == 0, result.stderr
 
 
 def test_artifact_store_writes_manifest_and_rows(tmp_path: Path) -> None:
@@ -91,9 +93,12 @@ def test_dashboard_paths_resolve_explicit_root(tmp_path: Path) -> None:
 
 
 def test_dashboard_assets_are_packaged_separately() -> None:
-    from thesis_neuro import audit_web
+    from importlib import resources
 
-    assert "<!doctype html>" in audit_web.INDEX_HTML.lower()
-    assert "/static/audit.css" in audit_web.INDEX_HTML
-    assert "--ink" in audit_web.AUDIT_CSS
-    assert "initialize()" in audit_web.AUDIT_JS
+    static = resources.files("thesis_neuro.static")
+    for name in ("audit.html", "audit.css", "audit.js"):
+        assert static.joinpath(name).is_file(), name
+    html = static.joinpath("audit.html").read_text(encoding="utf-8")
+    assert "<!doctype html>" in html.lower()
+    assert "/static/audit.css" in html and "/static/audit.js" in html
+    assert "http://" not in html and "https://" not in html  # no external assets

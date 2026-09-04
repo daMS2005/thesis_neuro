@@ -17,6 +17,13 @@ ANALYSIS_STAGES = (
 )
 
 
+def _non_negative_int(value: str) -> int:
+    parsed = int(value)
+    if parsed < 0:
+        raise argparse.ArgumentTypeError(f"expected a non-negative integer, got {value}")
+    return parsed
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="thesis-neuro")
     parser.add_argument(
@@ -151,16 +158,21 @@ def build_parser() -> argparse.ArgumentParser:
     probe.add_argument("--transcript-dir", default=None, help="Directory containing transcript artifacts.")
     probe.add_argument("--dolma-dir", default=None, help="Directory containing dolma_feature_contexts.jsonl.")
     probe.add_argument("--alignment-path", default=None, help="Optional path to feature_alignment.jsonl.")
-    probe.add_argument("--layer", type=int, required=True, help="Target SAE layer.")
-    probe.add_argument("--feature-id", type=int, required=True, help="Target feature id.")
+    probe.add_argument("--layer", type=_non_negative_int, required=True, help="Target SAE layer.")
+    probe.add_argument("--feature-id", type=_non_negative_int, required=True, help="Target feature id.")
     probe.add_argument("--script-id", default=None, help="Optional transcript script id to emphasize in evidence gathering.")
     probe.add_argument("--max-rounds", type=int, default=None, help="Override probing.max_rounds.")
-    probe.add_argument("--run-steering", action="store_true", help="Enable steering experiments for this probing run.")
+    probe.add_argument(
+        "--steering",
+        action=argparse.BooleanOptionalAction,
+        default=None,
+        help="Enable or disable steering experiments (default: probing.enable_steering from the config).",
+    )
     probe.add_argument("--judge-model", default=None, help="Optional OpenAI model override for the probing agent.")
 
     subparsers.add_parser(
         "mock-extract",
-        help="Write a mock paired artifact with the target schema for downstream validation.",
+        help="Write a mock paired artifact with the token-level record schema, for installation and schema checks.",
     )
 
     summarize = subparsers.add_parser(
@@ -277,7 +289,7 @@ def main() -> None:
             feature_id=args.feature_id,
             script_id=args.script_id,
             max_rounds=args.max_rounds,
-            run_steering=args.run_steering,
+            run_steering=args.steering,
             judge_model=args.judge_model,
         ).run()
         print(json.dumps(result, indent=2))

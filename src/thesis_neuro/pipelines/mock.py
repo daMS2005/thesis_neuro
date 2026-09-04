@@ -1,4 +1,4 @@
-"""Dependency-light mock extraction for schema and installation checks."""
+"""Dependency-light mock extraction that writes the token-level core of the paired-record schema (no sentence or clause metadata)."""
 
 from __future__ import annotations
 

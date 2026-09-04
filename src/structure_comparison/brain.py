@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import re
+import warnings
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -50,7 +51,7 @@ def build_brain_targets_from_dataset(
     transcript_paths = resolve_transcript_paths(transcript_root, stimulus_id)
     tr_bins = load_tr_bins(transcript_paths.tr_aligned_tsv)
     expected_trs = len(tr_bins)
-    parcel_names = load_atlas_label_names(atlas_labels_csv)
+    load_atlas_label_names(atlas_labels_csv)  # validate the label CSV before touching any BOLD file
     bold_paths = sorted(dataset_dir.glob(f"sub-*/func/*task-{stimulus_id}_bold.nii.gz"))
     if not bold_paths:
         raise ValueError(f"No local BOLD paths found for stimulus {stimulus_id} under {dataset_dir}")
@@ -115,7 +116,7 @@ def build_brain_targets_from_dataset(
         )
 
     if not run_entries:
-        raise ValueError("No resolved shapessocial runs were available for parcel extraction.")
+        raise ValueError(f"No resolved runs were available for stimulus {stimulus_id}.")
     if not common_label_ids:
         raise ValueError("No common atlas parcels survived resampling across the resolved runs.")
 
@@ -271,7 +272,7 @@ def build_clean_brain_targets_from_fmriprep(
             tr_value=tr_value,
             high_pass_hz=high_pass_hz,
         )
-        cleaned_tsnr = compute_tsnr(cleaned_series)
+        raw_tsnr = compute_tsnr(parcel_matrix)  # before detrending, which removes the mean the ratio needs
         standardized_series = zscore_with_reference_mask(cleaned_series, ~run_censor_mask)
         label_set = set(label_ids)
         common_label_ids = label_set if common_label_ids is None else common_label_ids.intersection(label_set)
@@ -288,7 +289,7 @@ def build_clean_brain_targets_from_fmriprep(
                 "fd_values": fd_values,
                 "dvars_values": dvars_values,
                 "censor_mask": run_censor_mask,
-                "cleaned_tsnr": cleaned_tsnr,
+                "raw_tsnr": raw_tsnr,
             }
         )
         run_summaries.append(
@@ -301,7 +302,7 @@ def build_clean_brain_targets_from_fmriprep(
                 "parcel_count_before_intersection": int(standardized_series.shape[1]),
                 "censor_fraction": float(run_censor_mask.mean()),
                 "retained_tr_count": int((~run_censor_mask).sum()),
-                "mean_cleaned_tsnr": float(np.nanmean(cleaned_tsnr)),
+                "mean_raw_tsnr": float(np.nanmean(raw_tsnr)),
             }
         )
 
@@ -360,8 +361,8 @@ def build_clean_brain_targets_from_fmriprep(
         "censor_fraction_by_run": {
             f"{run['subject_id']}:{run['run_id']}": float(run["censor_fraction"]) for run in run_summaries
         },
-        "mean_cleaned_tsnr_by_run": {
-            f"{run['subject_id']}:{run['run_id']}": float(run["mean_cleaned_tsnr"]) for run in run_summaries
+        "mean_raw_tsnr_by_run": {
+            f"{run['subject_id']}:{run['run_id']}": float(run["mean_raw_tsnr"]) for run in run_summaries
         },
         "confound_columns_used": confound_columns_union,
         "preprocessing": {
@@ -425,6 +426,12 @@ def find_fmriprep_run_artifacts(fmriprep_dir: Path, stimulus_id: str) -> list[di
                 "metadata_path": str(metadata_path),
             }
         )
+    seen: dict[tuple[str, str], str] = {}
+    for artifact in run_artifacts:
+        key = (artifact["subject_id"], artifact["run_id"])
+        if key in seen:
+            raise ValueError(f"Duplicate fMRIPrep outputs for {key[0]} {key[1]}: {seen[key]} and {artifact['bold_path']}")
+        seen[key] = artifact["bold_path"]
     return run_artifacts
 
 
@@ -486,16 +493,11 @@ def build_confounds_for_cleaning(
     confounds = confounds_frame[selected_columns].copy()
     confounds = confounds.replace([np.inf, -np.inf], np.nan).fillna(0.0)
 
-    fd_values = (
-        confounds_frame["framewise_displacement"].to_numpy(dtype=float)
-        if "framewise_displacement" in confounds_frame.columns
-        else np.zeros(confounds_frame.shape[0], dtype=float)
-    )
-    dvars_values = (
-        confounds_frame["std_dvars"].to_numpy(dtype=float)
-        if "std_dvars" in confounds_frame.columns
-        else np.zeros(confounds_frame.shape[0], dtype=float)
-    )
+    missing_quality_columns = [column for column in ("framewise_displacement", "std_dvars") if column not in confounds_frame.columns]
+    if missing_quality_columns:
+        raise ValueError(f"Confounds file lacks {missing_quality_columns}; censoring cannot be computed without them.")
+    fd_values = confounds_frame["framewise_displacement"].to_numpy(dtype=float)
+    dvars_values = confounds_frame["std_dvars"].to_numpy(dtype=float)
     fd_values = np.nan_to_num(fd_values, nan=0.0, posinf=0.0, neginf=0.0)
     dvars_values = np.nan_to_num(dvars_values, nan=0.0, posinf=0.0, neginf=0.0)
 
@@ -543,6 +545,7 @@ def zscore_with_reference_mask(values: np.ndarray, reference_mask: np.ndarray) -
     if reference_mask.shape[0] != values.shape[0]:
         raise ValueError("Reference mask length does not match values rows.")
     if not np.any(reference_mask):
+        warnings.warn("No uncensored rows available; standardizing on all rows including censored ones.", stacklevel=2)
         reference_mask = np.ones(values.shape[0], dtype=bool)
     reference_values = values[reference_mask]
     mean = reference_values.mean(axis=0)
@@ -700,6 +703,8 @@ def combine_brain_target_bundles(
         pooled_tr_indices.append(targets.tr_indices.astype(int, copy=False))
         if targets.censor_mask is not None:
             has_censor = True
+        elif has_censor:
+            raise ValueError(f"Bundle {bundle_path} has no censor_mask but an earlier bundle does; combine only bundles with matching optional vectors.")
             pooled_censor_mask.append(targets.censor_mask.astype(bool, copy=False))
         if targets.framewise_displacement is not None:
             has_fd = True
@@ -763,6 +768,8 @@ def build_brain_design_matrix(
         raise ValueError(f"TR predictor matrix must be 2D, got {tr_predictors.shape}")
     if sorted(lags) != list(lags):
         raise ValueError("Brain lags must be sorted in ascending order.")
+    if any(int(lag) < 0 for lag in lags):
+        raise ValueError("Brain lags must be non-negative; negative lags would read future predictors.")
     tr_lookup = {int(tr_index): index for index, tr_index in enumerate(tr_indices.tolist())}
     design_rows: list[np.ndarray] = []
     kept_indices: list[int] = []
@@ -829,6 +836,8 @@ def build_pooled_brain_design_matrix(
         raise ValueError(f"TR predictor matrix must be 2D, got {tr_predictors.shape}")
     if sorted(lags) != list(lags):
         raise ValueError("Brain lags must be sorted in ascending order.")
+    if any(int(lag) < 0 for lag in lags):
+        raise ValueError("Brain lags must be non-negative; negative lags would read future predictors.")
 
     predictor_lookup: dict[tuple[str, int], int] = {}
     for row_index, sample_id in enumerate(_string_array(predictor_sample_ids).tolist()):
@@ -869,9 +878,7 @@ def build_pooled_brain_design_matrix(
     matched_tr_indices = brain_targets.tr_indices[kept]
     censored_sample_count = 0
     if brain_targets.censor_mask is not None:
-        matched_keys = {
-            key for key in predictor_lookup
-        }
+        matched_keys = set(predictor_lookup)
         target_keys = np.asarray(
             [
                 (parse_stimulus_from_pooled_run_id(str(run_id)), int(tr_index)) in matched_keys

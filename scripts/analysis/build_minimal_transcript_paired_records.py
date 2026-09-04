@@ -12,7 +12,7 @@ from structure_comparison.artifacts import load_predictor_feature_keys, select_l
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Build a slim transcript_paired_records artifact for hidden-state runs.")
-    parser.add_argument("--feature-run-dir", required=True, help="Directory containing full remote-run JSONL artifacts.")
+    parser.add_argument("--feature-run-dir", required=True, help="Directory containing the full feature-run JSONL artifacts.")
     parser.add_argument("--output-path", required=True, help="Output minimal JSONL path.")
     parser.add_argument("--stimulus-id", action="append", required=True, help="Stimulus id to retain. Repeatable.")
     parser.add_argument("--targets-per-layer", type=int, default=8)

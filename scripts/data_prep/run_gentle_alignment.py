@@ -164,10 +164,12 @@ def tr_bin_phonemes(phonemes: list[dict], tr_s: float, total_end_s: float, stimu
     return rows
 
 
-def process_story(story_dir: Path, audio_dir: Path, port: int):
+def process_story(story_dir: Path, port: int):
     slug = story_dir.name
     metadata = load_metadata(story_dir)
     audio_path = Path(metadata["audio_copy"])
+    if not audio_path.is_absolute():
+        audio_path = story_dir.parent / audio_path
     transcript_path = ensure_transcript_text(story_dir, slug)
 
     align_json = call_gentle(audio_path=audio_path, transcript_path=transcript_path, port=port)
@@ -211,15 +213,14 @@ def process_story(story_dir: Path, audio_dir: Path, port: int):
 
 def main():
     parser = argparse.ArgumentParser(description="Run Gentle forced alignment on prepared transcript/audio assets.")
-    parser.add_argument("--transcripts-dir", default=str(data_root() / "transcripts"))
+    parser.add_argument("--transcripts-dir", default=None, help="Transcript root (default: $THESIS_NEURO_DATA_ROOT/transcripts).")
     parser.add_argument("--targets", nargs="*", default=None, help="Optional subset of story slugs.")
     parser.add_argument("--image", default="lowerquality/gentle")
     parser.add_argument("--container-name", default="gentle-align")
     parser.add_argument("--port", type=int, default=8765)
     args = parser.parse_args()
 
-    transcripts_dir = Path(args.transcripts_dir).expanduser().resolve()
-    audio_dir = transcripts_dir / "audio"
+    transcripts_dir = (Path(args.transcripts_dir).expanduser() if args.transcripts_dir else data_root() / "transcripts").resolve()
 
     ensure_gentle_server(image=args.image, name=args.container_name, port=args.port)
     wait_for_gentle(port=args.port)
@@ -234,7 +235,7 @@ def main():
         story_dirs = [path for path in story_dirs if path.name in selected]
 
     for story_dir in story_dirs:
-        process_story(story_dir=story_dir, audio_dir=audio_dir, port=args.port)
+        process_story(story_dir=story_dir, port=args.port)
 
 
 if __name__ == "__main__":

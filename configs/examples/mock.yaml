@@ -1,3 +1,6 @@
+# Offline fixture: exercised by `make check` and CI through `thesis-neuro mock-extract`.
+# Writes the paired-record schema without model weights, data, or network access.
+# Only the keys below are set; every other section uses the parser defaults.
 model:
   layer_selection: [0]
 

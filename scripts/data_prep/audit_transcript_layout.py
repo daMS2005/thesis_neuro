@@ -6,7 +6,7 @@ from pathlib import Path
 
 from thesis_neuro.paths import data_root
 
-ACTIVE_STORIES = [
+DEFAULT_STORIES = [
     "black",
     "bronx",
     "forgot",
@@ -32,6 +32,12 @@ def expected_files(slug: str) -> set[str]:
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Audit the expected transcript artifacts for each story.")
     parser.add_argument(
+        "--stories",
+        nargs="+",
+        default=DEFAULT_STORIES,
+        help="Story slugs to audit (default: the Narratives stories used in the project).",
+    )
+    parser.add_argument(
         "--transcripts-dir",
         type=Path,
         default=None,
@@ -45,7 +51,7 @@ def main():
     transcripts_dir = (args.transcripts_dir or data_root() / "transcripts").expanduser().resolve()
 
     failures = 0
-    for slug in ACTIVE_STORIES:
+    for slug in args.stories:
         story_dir = transcripts_dir / slug
         if not story_dir.exists():
             print(f"[missing-dir] {slug}: {story_dir}")

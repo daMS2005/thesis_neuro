@@ -71,16 +71,15 @@ def build_tr_feature_artifacts(
     predictor_top_k: int | None = None,
 ) -> dict[str, Any]:
     output_dir.mkdir(parents=True, exist_ok=True)
-    required_remote_paths = {
+    required_feature_paths = {
         "transcript_paired_records": resolve_transcript_paired_path(feature_run_dir),
         "selected_features_for_alignment": feature_run_dir / "selected_features_for_alignment.jsonl",
-        "feature_alignment": feature_run_dir / "feature_alignment.jsonl",
         "feature_concepts": feature_run_dir / "feature_concepts.jsonl",
         "manifest": feature_run_dir / "manifest.json",
     }
-    for label, path in required_remote_paths.items():
+    for label, path in required_feature_paths.items():
         if not path.exists():
-            raise FileNotFoundError(f"Missing required remote artifact {label}: {path}")
+            raise FileNotFoundError(f"Missing required feature-run artifact {label}: {path}")
 
     transcript_paths = resolve_transcript_paths(transcript_root, stimulus_id)
     transcript_txt = transcript_paths.transcript_txt.read_text(encoding="utf-8").strip()
@@ -89,19 +88,19 @@ def build_tr_feature_artifacts(
     metadata = json.loads(transcript_paths.metadata_json.read_text(encoding="utf-8"))
 
     predictor_keys = load_predictor_feature_keys(
-        required_remote_paths["selected_features_for_alignment"],
+        required_feature_paths["selected_features_for_alignment"],
         top_k=predictor_top_k,
     )
     family_layers = tuple(sorted({layer for layer, _feature_id in predictor_keys}))
     lm_target_keys = select_lm_target_feature_keys(
-        feature_concepts_path=required_remote_paths["feature_concepts"],
+        feature_concepts_path=required_feature_paths["feature_concepts"],
         predictor_keys=predictor_keys,
         targets_per_layer=lm_targets_per_layer,
         target_layers=family_layers,
     )
 
     token_stream = extract_global_tokens(
-        transcript_paired_path=required_remote_paths["transcript_paired_records"],
+        transcript_paired_path=required_feature_paths["transcript_paired_records"],
         stimulus_id=stimulus_id,
         layer=family_layers[0],
     )
@@ -120,7 +119,7 @@ def build_tr_feature_artifacts(
     validate_tr_alignment(word_rows, word_to_tr_index, tr_bins, float(metadata.get("stimulus_onset_s", 0.0)))
 
     feature_artifacts = aggregate_tr_feature_views(
-        transcript_paired_path=required_remote_paths["transcript_paired_records"],
+        transcript_paired_path=required_feature_paths["transcript_paired_records"],
         stimulus_id=stimulus_id,
         token_to_word_index=token_to_word_index,
         word_to_tr_index=word_to_tr_index,
@@ -148,24 +147,23 @@ def build_pooled_tr_feature_artifacts(
     if not stimulus_ids:
         raise ValueError("stimulus_ids must not be empty.")
     output_dir.mkdir(parents=True, exist_ok=True)
-    required_remote_paths = {
+    required_feature_paths = {
         "transcript_paired_records": resolve_transcript_paired_path(feature_run_dir),
         "selected_features_for_alignment": feature_run_dir / "selected_features_for_alignment.jsonl",
-        "feature_alignment": feature_run_dir / "feature_alignment.jsonl",
         "feature_concepts": feature_run_dir / "feature_concepts.jsonl",
         "manifest": feature_run_dir / "manifest.json",
     }
-    for label, path in required_remote_paths.items():
+    for label, path in required_feature_paths.items():
         if not path.exists():
-            raise FileNotFoundError(f"Missing required remote artifact {label}: {path}")
+            raise FileNotFoundError(f"Missing required feature-run artifact {label}: {path}")
 
     predictor_keys = load_predictor_feature_keys(
-        required_remote_paths["selected_features_for_alignment"],
+        required_feature_paths["selected_features_for_alignment"],
         top_k=predictor_top_k,
     )
     family_layers = tuple(sorted({layer for layer, _feature_id in predictor_keys}))
     lm_target_keys = select_lm_target_feature_keys(
-        feature_concepts_path=required_remote_paths["feature_concepts"],
+        feature_concepts_path=required_feature_paths["feature_concepts"],
         predictor_keys=predictor_keys,
         targets_per_layer=lm_targets_per_layer,
         target_layers=family_layers,
@@ -180,7 +178,7 @@ def build_pooled_tr_feature_artifacts(
         metadata = json.loads(transcript_paths.metadata_json.read_text(encoding="utf-8"))
 
         token_stream = extract_global_tokens(
-            transcript_paired_path=required_remote_paths["transcript_paired_records"],
+            transcript_paired_path=required_feature_paths["transcript_paired_records"],
             stimulus_id=stimulus_id,
             layer=family_layers[0],
         )
@@ -200,7 +198,7 @@ def build_pooled_tr_feature_artifacts(
 
         per_story_artifacts.append(
             aggregate_tr_feature_views(
-                transcript_paired_path=required_remote_paths["transcript_paired_records"],
+                transcript_paired_path=required_feature_paths["transcript_paired_records"],
                 stimulus_id=stimulus_id,
                 token_to_word_index=token_to_word_index,
                 word_to_tr_index=word_to_tr_index,
@@ -446,6 +444,12 @@ def extract_confidence(row: dict[str, Any]) -> float:
 
 
 def resolve_transcript_paired_path(feature_run_dir: Path) -> Path:
+    """Return the paired-record artifact, preferring the slim ``.minimal`` variant when both exist.
+
+    The minimal file (see scripts/analysis/build_minimal_transcript_paired_records.py) carries the same
+    rows for the selected stimuli without the fields the structure workflow never reads.
+    """
+
     candidates = (
         feature_run_dir / "transcript_paired_records.minimal.jsonl",
         feature_run_dir / "transcript_paired_records.jsonl",

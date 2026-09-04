@@ -73,7 +73,7 @@ class DolmaContextCollectionPipeline(ExtractionPipeline):
                     residual = hidden_states[layer_idx + 1]
                     latents = self.sae.encode_layer(layer_idx, residual).squeeze(0).detach().to("cpu").clamp_min(0)
                     for feature_id in feature_ids:
-                        if feature_id >= latents.shape[-1]:
+                        if feature_id < 0 or feature_id >= latents.shape[-1]:
                             continue
                         token_values = latents[:, feature_id]
                         total_activation = float(token_values.sum().item())

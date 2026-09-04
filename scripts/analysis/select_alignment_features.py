@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
+import argparse
 import json
-import sys
 from pathlib import Path
 
 
@@ -19,13 +19,19 @@ def load_jsonl(path: Path) -> list[dict]:
     return rows
 
 
-def main() -> None:
-    if len(sys.argv) != 4:
-        raise SystemExit("Usage: select_alignment_features.py <feature_concepts.jsonl> <output.jsonl> <top_n>")
+def build_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(description="Select the top judged features for the alignment stage.")
+    parser.add_argument("--concepts-path", required=True, type=Path, help="feature_concepts.jsonl written by analyze-features.")
+    parser.add_argument("--output-path", required=True, type=Path, help="Where to write selected_features_for_alignment.jsonl.")
+    parser.add_argument("--top-n", required=True, type=int, help="Number of judged features to keep.")
+    return parser
 
-    concepts_path = Path(sys.argv[1])
-    output_path = Path(sys.argv[2])
-    top_n = int(sys.argv[3])
+
+def main() -> None:
+    args = build_parser().parse_args()
+    concepts_path = args.concepts_path
+    output_path = args.output_path
+    top_n = args.top_n
 
     rows = load_jsonl(concepts_path)
     judged = [row for row in rows if row.get("judge_status") == "ok"]

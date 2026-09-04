@@ -43,6 +43,7 @@ def run_structure_comparison(
         predictor_matrix = artifacts.predictor_average
         lm_target_matrix = artifacts.lm_target_average
     else:
+        # Presence is a binary predictor view; LM targets stay continuous (mass) so the fit is still a regression.
         predictor_matrix = artifacts.predictor_presence.astype(float)
         lm_target_matrix = artifacts.lm_target_mass
     families = build_family_matrices(artifacts, predictor_matrix, lm_target_matrix)

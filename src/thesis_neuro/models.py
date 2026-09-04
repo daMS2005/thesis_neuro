@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import re
+import warnings
 from contextlib import nullcontext
 from dataclasses import dataclass
 from typing import Any
@@ -232,10 +233,10 @@ class GemmaModelAdapter:
         lowered = requested.lower()
         if lowered != "auto":
             return lowered
-        if torch.backends.mps.is_available():
-            return "mps"
         if torch.cuda.is_available():
             return "cuda"
+        if torch.backends.mps.is_available():
+            return "mps"
         return "cpu"
 
     @staticmethod
@@ -454,9 +455,14 @@ class GemmaModelAdapter:
             next_span_id += 1
 
         if span_type == "sentence":
+            # Tokens that overlap no sentence span (leading whitespace, special tokens) take the nearest
+            # assigned neighbour's sentence rather than the last sentence in the window.
+            last_seen = spans[0]["sentence_id"] if spans else 0
             for token_idx, span_id in enumerate(token_span_ids):
                 if span_id < 0:
-                    token_span_ids[token_idx] = spans[-1]["sentence_id"] if spans else 0
+                    token_span_ids[token_idx] = last_seen
+                else:
+                    last_seen = span_id
         return spans, token_span_ids
 
     @staticmethod
@@ -487,6 +493,10 @@ class GemmaModelAdapter:
     def _fallback_single_sentence_metadata(
         token_count: int,
     ) -> tuple[list[int], list[dict[str, Any]], list[dict[str, Any]]]:
+        warnings.warn(
+            "Sentence metadata could not be aligned to the window tokens; treating the whole window as one sentence.",
+            stacklevel=2,
+        )
         if token_count <= 0:
             return [], [], []
         sentence_span = {

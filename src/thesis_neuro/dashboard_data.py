@@ -5,7 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 
-from thesis_neuro.paths import repository_root, resolve_output_path
+from thesis_neuro.paths import DEFAULT_RUN_DIR, repository_root, resolve_output_path
 
 
 @dataclass(slots=True)
@@ -26,7 +26,7 @@ class DashboardPaths:
 
 def resolve_dashboard_paths(
     repo_root: str | Path | None = None,
-    analysis_dir: str | Path = "outputs/default_run",
+    analysis_dir: str | Path = DEFAULT_RUN_DIR,
     transcript_dir: str | Path | None = None,
     dolma_dir: str | Path | None = None,
 ) -> DashboardPaths:
@@ -35,6 +35,8 @@ def resolve_dashboard_paths(
     transcript = _resolve_path(root, transcript_dir) if transcript_dir is not None else None
     dolma = _resolve_path(root, dolma_dir) if dolma_dir is not None else None
 
+    # Prefer the full paired-record artifact; fall back to the slimmed variant written by
+    # scripts/analysis/build_minimal_transcript_paired_records.py when only that exists.
     transcript_paired_path = None
     if transcript is not None:
         preferred = transcript / "transcript_paired_records.jsonl"

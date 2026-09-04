@@ -4,9 +4,12 @@ from __future__ import annotations
 
 import json
 import random
+import time
 from typing import Any
 
 from openai import APIConnectionError, APITimeoutError, InternalServerError, OpenAI, RateLimitError
+
+from thesis_neuro.judge import extract_json_object
 
 PROBE_ROUND_SYSTEM_PROMPT = """You are a mechanistic interpretability probing agent.
 You are given evidence about one sparse autoencoder feature.
@@ -112,16 +115,15 @@ class OpenAIProbingAgent:
                 if attempt >= attempts - 1:
                     raise
                 delay = min(90.0, 4.0 * (2**attempt) + random.uniform(0.0, 1.5))
-                import time
 
                 time.sleep(delay)
 
     def _parse_or_repair_json(self, text: str) -> dict[str, Any]:
         try:
-            return self._extract_json(text)
+            return extract_json_object(text, label="Probing agent")
         except (json.JSONDecodeError, ValueError):
             repaired = self._repair_json(text)
-            result = self._extract_json(repaired)
+            result = extract_json_object(repaired, label="Probing agent")
             result["raw_repaired_response_text"] = repaired.strip()
             return result
 
@@ -130,31 +132,5 @@ class OpenAIProbingAgent:
         response = self._create_response_with_backoff(PROBE_JSON_REPAIR_SYSTEM_PROMPT, repair_payload)
         return response.output_text.strip()
 
-    @staticmethod
-    def _extract_json(text: str) -> dict[str, Any]:
-        stripped = text.strip()
-        if stripped.startswith("```"):
-            lines = stripped.splitlines()
-            if len(lines) >= 3:
-                stripped = "\n".join(lines[1:-1]).strip()
-        start = stripped.find("{")
-        end = stripped.rfind("}")
-        if start == -1 or end == -1 or end < start:
-            raise ValueError("Probing agent response did not contain a JSON object.")
-        candidate = stripped[start : end + 1]
-        try:
-            return json.loads(candidate)
-        except json.JSONDecodeError:
-            decoder = json.JSONDecoder()
-            for offset in range(start, len(stripped)):
-                if stripped[offset] != "{":
-                    continue
-                try:
-                    parsed, end_index = decoder.raw_decode(stripped[offset:])
-                except json.JSONDecodeError:
-                    continue
-                if isinstance(parsed, dict):
-                    return parsed
-            raise
 
 

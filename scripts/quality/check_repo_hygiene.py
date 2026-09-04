@@ -21,7 +21,7 @@ MACHINE_PATTERNS = (
     re.compile(r"/(?:Users|home)/[A-Za-z0-9._-]+/"),
     re.compile(r"\b10\.\d{1,3}\.\d{1,3}\.\d{1,3}\b"),
 )
-SELF = Path(__file__).resolve()
+SELF = Path(__file__).resolve()  # exempt from the machine-path scan because it defines those patterns
 
 
 def tracked_files() -> list[Path]:
@@ -36,11 +36,12 @@ def inspect_file(path: Path) -> list[str]:
         issues.append("research data or generated output is tracked")
     if relative.endswith(FORBIDDEN_SUFFIXES):
         issues.append("binary data or model artifact is tracked")
-    if path.stat().st_size > MAX_FILE_BYTES:
-        issues.append(f"oversized file ({path.stat().st_size} bytes)")
+    size = path.stat().st_size
+    if size > MAX_FILE_BYTES:
+        issues.append(f"oversized file ({size} bytes)")
     if path.suffix == ".ipynb":
         issues.extend(_inspect_notebook(path))
-    elif path.stat().st_size <= MAX_FILE_BYTES:
+    elif size <= MAX_FILE_BYTES:
         text = path.read_text(encoding="utf-8", errors="ignore")
         issues.extend(_inspect_text(text, check_machine_paths=path.resolve() != SELF))
     return issues
@@ -66,12 +67,13 @@ def _inspect_text(text: str, check_machine_paths: bool = True) -> list[str]:
 
 
 def main() -> int:
-    findings = [f"{path.relative_to(ROOT)}: {issue}" for path in tracked_files() for issue in inspect_file(path)]
+    paths = tracked_files()
+    findings = [f"{path.relative_to(ROOT)}: {issue}" for path in paths for issue in inspect_file(path)]
     if findings:
         print("Repository hygiene check failed:")
         print("\n".join(f"- {finding}" for finding in findings))
         return 1
-    print(f"Repository hygiene check passed for {len(tracked_files())} tracked files.")
+    print(f"Repository hygiene check passed for {len(paths)} tracked files.")
     return 0
 
 

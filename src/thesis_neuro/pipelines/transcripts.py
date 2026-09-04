@@ -49,7 +49,7 @@ class TranscriptFeatureDiscoveryPipeline(ExtractionPipeline):
             if len(token_ids) > transcript_window_len:
                 print(
                     f"[transcripts] transcript {raw_document.doc_id} exceeds model context "
-                    f"({len(token_ids)} > {transcript_window_len}); chunking is still required"
+                    f"({len(token_ids)} > {transcript_window_len}); splitting it into windows"
                 )
             windows = self.model.make_windows(
                 token_ids,
@@ -291,7 +291,7 @@ class TranscriptFeatureDiscoveryPipeline(ExtractionPipeline):
                         "examples": [],
                     },
                 )
-                snippet = self._token_snippet(window.tokens, token_position, self.config.dolma_query.context_window_tokens)
+                snippet = self._token_snippet(window.tokens, token_position, self.config.feature_selection.example_context_tokens)
                 update["examples"].append(
                     (
                         float(activation),

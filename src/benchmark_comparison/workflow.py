@@ -6,7 +6,7 @@ import argparse
 import json
 from pathlib import Path
 
-DEFAULT_TARGET_COLUMNS = ("correct", "gold_choice_avg_logprob", "margin")
+from benchmark_comparison.defaults import DEFAULT_ALPHA_GRID, DEFAULT_TARGET_COLUMNS
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -48,7 +48,7 @@ def build_parser() -> argparse.ArgumentParser:
     fit.add_argument("--score-jsonl", required=True)
     fit.add_argument("--output-dir", required=True)
     fit.add_argument("--target-columns", nargs="+", default=list(DEFAULT_TARGET_COLUMNS))
-    fit.add_argument("--alpha-grid", nargs="+", type=float, default=[0.1, 1.0, 10.0, 100.0, 1000.0])
+    fit.add_argument("--alpha-grid", nargs="+", type=float, default=list(DEFAULT_ALPHA_GRID))
     fit.add_argument("--folds", type=int, default=5)
     fit.add_argument("--seed", type=int, default=42)
     fit.add_argument("--registry-path", default=None)
@@ -64,7 +64,7 @@ def build_parser() -> argparse.ArgumentParser:
     run_all.add_argument("--limit", type=int, default=None)
     run_all.add_argument("--top-k", type=int, default=None)
     run_all.add_argument("--target-columns", nargs="+", default=list(DEFAULT_TARGET_COLUMNS))
-    run_all.add_argument("--alpha-grid", nargs="+", type=float, default=[0.1, 1.0, 10.0, 100.0, 1000.0])
+    run_all.add_argument("--alpha-grid", nargs="+", type=float, default=list(DEFAULT_ALPHA_GRID))
     run_all.add_argument("--folds", type=int, default=5)
     run_all.add_argument("--seed", type=int, default=42)
     run_all.add_argument("--local-files-only", action="store_true")
@@ -80,7 +80,7 @@ def build_parser() -> argparse.ArgumentParser:
     run_suite.add_argument("--limit", type=int, default=None)
     run_suite.add_argument("--top-k", type=int, default=None)
     run_suite.add_argument("--target-columns", nargs="+", default=list(DEFAULT_TARGET_COLUMNS))
-    run_suite.add_argument("--alpha-grid", nargs="+", type=float, default=[0.1, 1.0, 10.0, 100.0, 1000.0])
+    run_suite.add_argument("--alpha-grid", nargs="+", type=float, default=list(DEFAULT_ALPHA_GRID))
     run_suite.add_argument("--folds", type=int, default=5)
     run_suite.add_argument("--seed", type=int, default=42)
     run_suite.add_argument("--local-files-only", action="store_true")

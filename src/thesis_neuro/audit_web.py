@@ -18,6 +18,8 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import parse_qs, urlparse
 
+from dotenv import load_dotenv
+
 from thesis_neuro.audit_data import (
     AuditBundle,
     build_feature_lookup,
@@ -28,22 +30,26 @@ from thesis_neuro.audit_data import (
     load_audit_bundle,
     resolve_audit_paths,
 )
-from thesis_neuro.paths import default_config_path, output_root, repository_root
+from thesis_neuro.config import load_app_config
+from thesis_neuro.paths import DEFAULT_RUN_DIR, default_config_path, repository_root, resolve_output_path
+from thesis_neuro.probes.schema import probe_run_paths
 
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(prog="thesis-neuro-audit")
     parser.add_argument("--repo-root", default=None)
-    parser.add_argument("--analysis-dir", default="outputs/default-run")
-    parser.add_argument("--transcript-dir", default="outputs/default-run")
-    parser.add_argument("--dolma-dir", default="outputs/default-run")
+    parser.add_argument("--config", default=None, help="YAML config used for probes launched from the dashboard (default: configs/default.yaml).")
+    parser.add_argument("--env-file", default=".env", help="Environment file loaded for the dashboard and its probe subprocesses.")
+    parser.add_argument("--analysis-dir", default=DEFAULT_RUN_DIR)
+    parser.add_argument("--transcript-dir", default=DEFAULT_RUN_DIR)
+    parser.add_argument("--dolma-dir", default=DEFAULT_RUN_DIR)
     parser.add_argument(
         "--bundle",
         action="append",
         default=[],
         help="Repeated bundle spec: bundle_id|label|analysis_dir|transcript_dir|dolma_dir",
     )
-    parser.add_argument("--default-script", default="shapesphysical")
+    parser.add_argument("--default-script", default=None, help="Script to open first (default: the first script in the bundle).")
     parser.add_argument("--default-layer", type=int, default=None)
     parser.add_argument("--host", default="127.0.0.1")
     parser.add_argument("--port", type=int, default=8010)
@@ -62,6 +68,9 @@ class AuditBundleState:
 @dataclass(slots=True)
 class AuditServerState:
     repo_root: Path
+    config_path: Path
+    env_file: Path
+    probe_root: Path
     bundles: dict[str, AuditBundleState]
     default_bundle_id: str
     script_view_cache: dict[tuple[str, str, int], dict[str, Any]]
@@ -134,6 +143,9 @@ class LazyAuditServerState:
 
 def build_server_state(args: argparse.Namespace) -> AuditServerState:
     repo_root = Path(args.repo_root).expanduser().resolve() if args.repo_root else repository_root()
+    config_path = Path(args.config).expanduser().resolve() if args.config else default_config_path()
+    env_file = Path(args.env_file).expanduser()
+    probe_root = resolve_output_path(load_app_config(config_path, env_file=env_file).probing.output_dir)
     bundle_specs = _bundle_specs_from_args(args)
     bundles: dict[str, AuditBundleState] = {}
     for spec in bundle_specs:
@@ -151,7 +163,9 @@ def build_server_state(args: argparse.Namespace) -> AuditServerState:
         layers = list(default_script.get("layers") or [])
         if not layers:
             raise ValueError(f"No layers available for script {default_script_id} in bundle {spec['bundle_id']}")
-        default_layer = int(args.default_layer) if args.default_layer in layers else int(layers[-1])
+        if args.default_layer is not None and int(args.default_layer) not in layers:
+            raise ValueError(f"--default-layer {args.default_layer} is not one of the available layers {layers}")
+        default_layer = int(args.default_layer) if args.default_layer is not None else int(layers[-1])
         bundles[spec["bundle_id"]] = AuditBundleState(
             bundle_id=spec["bundle_id"],
             label=spec["label"],
@@ -163,6 +177,9 @@ def build_server_state(args: argparse.Namespace) -> AuditServerState:
         raise ValueError("No audit bundles configured.")
     return AuditServerState(
         repo_root=repo_root,
+        config_path=config_path,
+        env_file=env_file,
+        probe_root=probe_root,
         bundles=bundles,
         default_bundle_id=next(iter(bundles)),
         script_view_cache={},
@@ -174,6 +191,20 @@ def build_handler(lazy_state: LazyAuditServerState):
         server_version = "ThesisNeuroAudit/0.1"
 
         def do_GET(self) -> None:  # noqa: N802
+            self._guarded(self._handle_get)
+
+        def do_POST(self) -> None:  # noqa: N802
+            self._guarded(self._handle_post)
+
+        def _guarded(self, handler: Any) -> None:
+            try:
+                handler()
+            except RuntimeError as exc:  # bundles still loading
+                self._send_json({"error": str(exc)}, status=HTTPStatus.SERVICE_UNAVAILABLE)
+            except (ValueError, KeyError, IndexError, TypeError) as exc:
+                self._send_json({"error": str(exc)}, status=HTTPStatus.BAD_REQUEST)
+
+        def _handle_get(self) -> None:
             parsed = urlparse(self.path)
             if parsed.path == "/":
                 self._send_html(INDEX_HTML)
@@ -212,7 +243,7 @@ def build_handler(lazy_state: LazyAuditServerState):
                 return
             self.send_error(HTTPStatus.NOT_FOUND, "Not found")
 
-        def do_POST(self) -> None:  # noqa: N802
+        def _handle_post(self) -> None:
             parsed = urlparse(self.path)
             if parsed.path == "/api/probe-start":
                 payload = self._read_json_body()
@@ -235,9 +266,9 @@ def build_handler(lazy_state: LazyAuditServerState):
             self.end_headers()
             self.wfile.write(body)
 
-        def _send_json(self, payload: Any) -> None:
+        def _send_json(self, payload: Any, status: HTTPStatus = HTTPStatus.OK) -> None:
             body = json.dumps(payload, ensure_ascii=False).encode("utf-8")
-            self.send_response(HTTPStatus.OK)
+            self.send_response(status)
             self.send_header("Content-Type", "application/json; charset=utf-8")
             self.send_header("Cache-Control", "no-store")
             self.send_header("Content-Length", str(len(body)))
@@ -447,8 +478,8 @@ def _probe_start_payload(state: AuditServerState, payload: dict[str, Any]) -> di
     if status["running"] or status["has_report"]:
         return status
 
-    probe_paths = _probe_paths(bundle_state, script_id=script_id, layer=layer, feature_id=feature_id)
-    config_path = default_config_path()
+    probe_paths = _probe_paths(state, bundle_state, script_id=script_id, layer=layer, feature_id=feature_id)
+    config_path = state.config_path
     python_bin = Path(sys.executable)
     probe_paths["root"].mkdir(parents=True, exist_ok=True)
     command = [
@@ -458,7 +489,7 @@ def _probe_start_payload(state: AuditServerState, payload: dict[str, Any]) -> di
         "--config",
         str(config_path),
         "--env-file",
-        str(state.repo_root / ".env"),
+        str(state.env_file),
         "probe-feature",
         "--analysis-dir",
         str(bundle_state.bundle.paths.analysis_dir),
@@ -487,6 +518,7 @@ def _probe_start_payload(state: AuditServerState, payload: dict[str, Any]) -> di
         )
     job_key = _probe_job_key(bundle_state.bundle_id, script_id, layer, feature_id)
     state.probe_jobs[job_key] = {
+        "process": process,
         "pid": process.pid,
         "started_at": time.time(),
         "log_path": str(probe_paths["log_path"]),
@@ -508,11 +540,12 @@ def _probe_status_for_feature(
     layer: int,
     feature_id: int,
 ) -> dict[str, Any]:
-    probe_paths = _probe_paths(bundle_state, script_id=script_id, layer=layer, feature_id=feature_id)
+    probe_paths = _probe_paths(state, bundle_state, script_id=script_id, layer=layer, feature_id=feature_id)
     job_key = _probe_job_key(bundle_state.bundle_id, script_id, layer, feature_id)
     job = state.probe_jobs.get(job_key) or {}
+    process = job.get("process")
     pid = int(job["pid"]) if job.get("pid") else None
-    running = bool(pid and _pid_is_running(pid))
+    running = bool(process is not None and process.poll() is None)
     if pid and not running:
         state.probe_jobs.pop(job_key, None)
     report_data = _read_json_if_exists(probe_paths["report_path"])
@@ -547,29 +580,23 @@ def _probe_status_for_feature(
 
 
 def _probe_paths(
+    state: AuditServerState,
     bundle_state: AuditBundleState,
     script_id: str | None,
     layer: int,
     feature_id: int,
 ) -> dict[str, Path]:
-    script_segment = _slugify(script_id) if script_id else "all_scripts"
-    root = (
-        output_root()
-        / "probe_runs"
-        / bundle_state.bundle.paths.analysis_dir.name
-        / script_segment
-        / f"layer_{int(layer)}"
-        / f"feature_{int(feature_id)}"
-    )
+    # Same layout the probing runner uses, so runs started here are found again on the next poll.
+    paths = probe_run_paths(state.probe_root, bundle_state.bundle.paths.analysis_dir.name, script_id, layer, feature_id)
     return {
-        "root": root,
-        "log_path": root / "dashboard_probe.log",
-        "report_path": root / "feature_probe_report.json",
-        "manifest_path": root / "manifest.json",
-        "evidence_path": root / "feature_probe_evidence.json",
-        "tests_path": root / "feature_probe_tests.jsonl",
-        "rounds_path": root / "feature_probe_rounds.jsonl",
-        "steering_path": root / "feature_probe_steering.jsonl",
+        "root": paths.root,
+        "log_path": paths.root / "dashboard_probe.log",
+        "report_path": paths.report_path,
+        "manifest_path": paths.manifest_path,
+        "evidence_path": paths.evidence_path,
+        "tests_path": paths.tests_path,
+        "rounds_path": paths.rounds_path,
+        "steering_path": paths.steering_path,
     }
 
 
@@ -580,13 +607,6 @@ def _probe_job_key(bundle_id: str, script_id: str, layer: int, feature_id: int) 
 def _slugify(value: str) -> str:
     return re.sub(r"[^a-z0-9]+", "_", str(value).lower()).strip("_") or "default"
 
-
-def _pid_is_running(pid: int) -> bool:
-    try:
-        os.kill(pid, 0)
-    except OSError:
-        return False
-    return True
 
 
 def _read_json_if_exists(path: Path) -> dict[str, Any] | None:
@@ -603,9 +623,10 @@ def _probe_report_summary(payload: dict[str, Any] | None) -> dict[str, Any] | No
         return None
     return {
         "feature_label": payload.get("feature_label"),
-        "one_sentence_summary": payload.get("one_sentence_summary"),
-        "confidence_label": payload.get("confidence_label"),
-        "support_score": payload.get("support_score"),
+        "final_hypothesis": payload.get("final_hypothesis"),
+        "summary": payload.get("summary"),
+        "confidence": payload.get("confidence"),
+        "uncertainty": payload.get("uncertainty"),
     }
 
 
@@ -616,13 +637,14 @@ def _probe_manifest_summary(payload: dict[str, Any] | None) -> dict[str, Any] | 
         "rounds_written": payload.get("rounds_written"),
         "tests_written": payload.get("tests_written"),
         "steering_rows_written": payload.get("steering_rows_written"),
-        "report_path": payload.get("report_path"),
+        "report_path": (payload.get("artifacts") or {}).get("report"),
     }
 
 
 def _probe_evidence_summary(payload: dict[str, Any] | None) -> dict[str, Any] | None:
     if not payload:
         return None
+    payload = payload.get("feature_evidence") or payload  # the runner nests the evidence detail
     return {
         "transcript_examples": len(payload.get("top_transcript_examples") or []),
         "dolma_contexts": len(payload.get("top_dolma_contexts") or []),
@@ -705,6 +727,7 @@ def _optional_int(query: dict[str, list[str]], name: str) -> int | None:
 
 def main() -> None:
     args = parse_args()
+    load_dotenv(args.env_file)
     lazy_state = LazyAuditServerState(args)
     lazy_state.start_loading()
     handler = build_handler(lazy_state)

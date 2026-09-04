@@ -9,8 +9,9 @@ from typing import Any, Iterable
 
 import numpy as np
 
+from benchmark_comparison.defaults import DEFAULT_ALPHA_GRID, DEFAULT_TARGET_COLUMNS
 from benchmark_comparison.items import read_jsonl
-from benchmark_comparison.registry import ModelRegistryEntry, load_registry
+from benchmark_comparison.registry import ModelRegistryEntry
 from structure_comparison.modeling import (
     compare_feature_importance,
     consensus_alpha,
@@ -18,8 +19,7 @@ from structure_comparison.modeling import (
     fit_final_model,
     run_grouped_ridge_cv,
 )
-
-DEFAULT_TARGET_COLUMNS = ("correct", "gold_choice_avg_logprob", "margin")
+from structure_comparison.utils import write_json
 
 
 def fit_benchmark_model(
@@ -28,7 +28,7 @@ def fit_benchmark_model(
     score_jsonl: str | Path,
     output_dir: str | Path,
     target_columns: Iterable[str] = DEFAULT_TARGET_COLUMNS,
-    alpha_grid: Iterable[float] = (0.1, 1.0, 10.0, 100.0, 1000.0),
+    alpha_grid: Iterable[float] = tuple(DEFAULT_ALPHA_GRID),
     folds: int = 5,
     seed: int = 42,
 ) -> dict[str, Any]:
@@ -40,8 +40,6 @@ def fit_benchmark_model(
     keep_indices, y, target_names, aligned_score_rows = _build_target_matrix(sample_ids, score_rows, target_columns)
     x = x[keep_indices]
     sample_ids = sample_ids[keep_indices]
-    feature_names = feature_names
-    task_names = task_names[keep_indices]
     groups = _build_task_balanced_groups(task_names=np.asarray([row["task"] for row in aligned_score_rows], dtype=str), folds=folds, seed=seed)
 
     output_root = Path(output_dir)
@@ -99,8 +97,8 @@ def fit_benchmark_model(
         benchmark_target_names=target_names,
         feature_names=aligned_feature_names,
     )
-    _write_json(output_root / "benchmark_cv_summary.json", benchmark_cv)
-    _write_json(output_root / "brain_benchmark_feature_importance.json", feature_importance)
+    write_json(output_root / "benchmark_cv_summary.json", benchmark_cv)
+    write_json(output_root / "brain_benchmark_feature_importance.json", feature_importance)
 
     summary = {
         "model_name": model_entry.name,
@@ -129,7 +127,7 @@ def fit_benchmark_model(
             "brain_benchmark_feature_importance": str(output_root / "brain_benchmark_feature_importance.json"),
         },
     }
-    _write_json(output_root / "summary.json", summary)
+    write_json(output_root / "summary.json", summary)
     return summary
 
 
@@ -155,9 +153,6 @@ def summarize_model_runs(run_root: str | Path, output_path: str | Path) -> dict[
             "benchmark_mean_test_correlation": payload["benchmark_mean_test_correlation"],
             "benchmark_mean_test_r2": payload["benchmark_mean_test_r2"],
             "brain_benchmark_feature_importance_correlation": payload["brain_benchmark_feature_importance_correlation"],
-            "registered_brain_mean_test_correlation": payload["registered_brain_mean_test_correlation"],
-            "registered_brain_mean_test_r2": payload["registered_brain_mean_test_r2"],
-            "observed_choice_accuracy": payload["behavioral_summary"].get("overall_accuracy"),
             "path": str(path),
         }
         rows.append(row)
@@ -190,31 +185,13 @@ def summarize_model_runs(run_root: str | Path, output_path: str | Path) -> dict[
         ),
         "rows": rows,
     }
-    _write_json(destination.with_suffix(".json"), correlation_summary)
+    write_json(destination.with_suffix(".json"), correlation_summary)
 
     return {
         "run_root": str(root),
         "output_path": str(destination),
         "rows_written": len(rows),
     }
-
-
-def registry_summary_rows(registry_path: str | Path | None = None) -> list[dict[str, Any]]:
-    registry = load_registry(registry_path)
-    rows: list[dict[str, Any]] = []
-    for model_name, entry in sorted(registry.items()):
-        brain_metrics = _load_registered_brain_metrics(entry.analysis_summary_path)
-        rows.append(
-            {
-                "model_name": model_name,
-                "model_id": entry.model_id,
-                "brain_mean_test_correlation": brain_metrics["brain_mean_test_correlation"],
-                "brain_mean_test_r2": brain_metrics["brain_mean_test_r2"],
-                "feature_importance_correlation": brain_metrics["feature_importance_correlation"],
-                "analysis_summary_path": str(entry.analysis_summary_path),
-            }
-        )
-    return rows
 
 
 def _load_feature_matrix(source: np.lib.npyio.NpzFile) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
@@ -285,11 +262,15 @@ def _load_brain_weights(path: str | Path) -> tuple[np.ndarray, np.ndarray, np.nd
             np.asarray(source["base_feature_names"], dtype=str),
             np.asarray(source["target_names"], dtype=str),
         )
-    return (
-        np.asarray(source["weights"], dtype=float),
-        np.asarray(source["feature_names"], dtype=str),
-        np.asarray(source["target_names"], dtype=str),
-    )
+    # Older bundles only carry lag-expanded weights; collapse them by summing over lags so the
+    # names match the benchmark's unlagged feature names.
+    weights = np.asarray(source["weights"], dtype=float)
+    names = np.asarray(source["feature_names"], dtype=str)
+    base_names = np.asarray([name.split("@lag", 1)[0] for name in names.tolist()], dtype=str)
+    unique_names, inverse = np.unique(base_names, return_inverse=True)
+    collapsed = np.zeros((unique_names.size, weights.shape[1]), dtype=float)
+    np.add.at(collapsed, inverse, weights)
+    return collapsed, unique_names, np.asarray(source["target_names"], dtype=str)
 
 
 def _align_feature_weights(
@@ -345,12 +326,6 @@ def _summarize_behavior(rows: list[dict[str, Any]]) -> dict[str, Any]:
         "mean_gold_choice_avg_logprob": float(np.mean(gold_avg_values)) if gold_avg_values else None,
         "per_task": per_task,
     }
-
-
-def _write_json(path: Path, payload: dict[str, Any]) -> None:
-    path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
-
-
 def _safe_pearson_from_rows(rows: list[dict[str, Any]], x_key: str, y_key: str) -> float | None:
     x_values: list[float] = []
     y_values: list[float] = []

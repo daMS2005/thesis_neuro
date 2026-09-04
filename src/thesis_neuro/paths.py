@@ -7,6 +7,7 @@ from pathlib import Path
 
 DATA_ROOT_ENV = "THESIS_NEURO_DATA_ROOT"
 OUTPUT_ROOT_ENV = "THESIS_NEURO_OUTPUT_ROOT"
+DEFAULT_RUN_DIR = "outputs/default-run"
 
 
 def repository_root() -> Path:
@@ -34,7 +35,11 @@ def resolve_repo_path(value: str | Path) -> Path:
 
 
 def resolve_data_path(value: str | Path) -> Path:
-    """Resolve a data path under :envvar:`THESIS_NEURO_DATA_ROOT`."""
+    """Resolve a data path under :envvar:`THESIS_NEURO_DATA_ROOT`.
+
+    Paths that start with ``examples/`` are the repository's tracked offline fixtures and
+    always resolve inside the checkout, so the mock config works under any data root.
+    """
 
     path = Path(value).expanduser()
     if not path.is_absolute() and path.parts and path.parts[0] == "examples":

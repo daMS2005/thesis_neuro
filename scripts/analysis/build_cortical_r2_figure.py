@@ -21,9 +21,6 @@ from PIL import Image, ImageChops, ImageOps
 
 from thesis_neuro.paths import data_root
 
-DEFAULT_ATLAS = data_root() / "atlases" / "schaefer200.nii.gz"
-DEFAULT_LABELS = data_root() / "atlases" / "schaefer200_labels.csv"
-
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Build a cortical Schaefer parcel R^2 map from a brain CV summary.")
@@ -31,16 +28,21 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--brain-targets-npz", required=True, type=Path)
     parser.add_argument("--output", required=True, type=Path)
     parser.add_argument("--title", default="")
-    parser.add_argument("--atlas", type=Path, default=DEFAULT_ATLAS)
-    parser.add_argument("--labels-csv", type=Path, default=DEFAULT_LABELS)
-    return parser.parse_args()
+    parser.add_argument("--atlas", type=Path, default=None, help="Atlas image (default: $THESIS_NEURO_DATA_ROOT/atlases/schaefer200.nii.gz).")
+    parser.add_argument("--labels-csv", type=Path, default=None, help="Atlas label CSV (default: $THESIS_NEURO_DATA_ROOT/atlases/schaefer200_labels.csv).")
+    args = parser.parse_args()
+    if args.atlas is None:
+        args.atlas = data_root() / "atlases" / "schaefer200.nii.gz"
+    if args.labels_csv is None:
+        args.labels_csv = data_root() / "atlases" / "schaefer200_labels.csv"
+    return args
 
 
-def load_parcel_r2(brain_cv_summary_path: Path) -> np.ndarray:
+def load_parcel_r2(brain_cv_summary_path: Path, expected_parcels: int) -> np.ndarray:
     summary = json.loads(brain_cv_summary_path.read_text())
     r2 = np.asarray(summary["aggregate"]["per_target_mean_r2"], dtype=float)
-    if r2.shape[0] != 200:
-        raise ValueError(f"Expected 200 parcel R^2 values, found {r2.shape[0]}")
+    if r2.shape[0] != expected_parcels:
+        raise ValueError(f"Expected {expected_parcels} parcel R^2 values (one per target), found {r2.shape[0]}")
     return r2
 
 
@@ -193,8 +195,8 @@ def plot_surface_grid(value_img: nib.Nifti1Image, output_path: Path, title: str)
 
 def main() -> None:
     args = parse_args()
-    parcel_r2 = load_parcel_r2(args.brain_cv_summary)
     target_names = np.load(args.brain_targets_npz, allow_pickle=True)["target_names"]
+    parcel_r2 = load_parcel_r2(args.brain_cv_summary, expected_parcels=len(target_names))
     value_img = build_value_volume(args.atlas, args.labels_csv, target_names, parcel_r2)
     plot_surface_grid(value_img, args.output, args.title)
 

@@ -9,6 +9,8 @@ __pycache__/
 *.egg-info/
 build/
 dist/
+.coverage
+htmlcov/
 .venv*/
 venv*/
 
@@ -29,3 +31,5 @@ outputs/
 *.nii
 *.nii.gz
 *.npz
+*.pt
+*.safetensors

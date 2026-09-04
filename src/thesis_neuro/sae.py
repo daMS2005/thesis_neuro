@@ -1,4 +1,4 @@
-"""Sparse-autoencoder adapter that discovers and loads Gemma Scope-style SAE releases."""
+"""Sparse-autoencoder adapter that discovers and loads Gemma Scope and Llama Scope residual SAE releases."""
 
 from __future__ import annotations
 

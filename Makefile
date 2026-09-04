@@ -3,7 +3,7 @@
 PYTHON ?= python
 CODE_PATHS = src scripts tests
 
-.PHONY: install install-full lint compile test notebooks links hygiene smoke check
+.PHONY: install install-full lint compile test notebooks links hygiene smoke check clean
 
 install:
 	$(PYTHON) -m pip install -e ".[dev]"
@@ -34,3 +34,7 @@ smoke:
 	thesis-neuro-benchmark validate-items --items-path examples/benchmark/mock_boolq.jsonl
 
 check: lint compile test notebooks links hygiene smoke
+
+clean:
+	rm -rf outputs/mock-schema .pytest_cache .ruff_cache
+	find . -name __pycache__ -type d -prune -exec rm -rf {} +

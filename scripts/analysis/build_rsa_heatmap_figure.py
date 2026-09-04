@@ -21,10 +21,10 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--lm-final-model", required=True, type=Path)
     parser.add_argument("--sample-rsa-json", required=True, type=Path)
     parser.add_argument("--output", required=True, type=Path)
-    parser.add_argument("--story-label", default="shapesphysical")
-    parser.add_argument("--model-label", default="Gemma 2 2B")
-    parser.add_argument("--tr-s", type=float, default=1.5)
-    parser.add_argument("--stimulus-onset-s", type=float, default=4.5)
+    parser.add_argument("--story-label", required=True, help="Stimulus label shown in the figure title.")
+    parser.add_argument("--model-label", required=True, help="Model label shown in the figure title.")
+    parser.add_argument("--tr-s", type=float, required=True, help="Repetition time in seconds (from the transcript metadata).")
+    parser.add_argument("--stimulus-onset-s", type=float, required=True, help="Story onset in seconds (from the transcript metadata).")
     return parser.parse_args()
 
 
@@ -111,10 +111,13 @@ def decorate_binned_axis(ax: plt.Axes, boundaries: list[int], n_bins: int) -> No
         if 0 < boundary < n_bins:
             ax.axvline(boundary - 0.5, color="black", linewidth=1.0, alpha=0.35)
             ax.axhline(boundary - 0.5, color="black", linewidth=1.0, alpha=0.35)
-    ax.set_xticks([0, 4, 8, 12, 16, 20])
-    ax.set_yticks([0, 4, 8, 12, 16, 20])
-    ax.set_xticklabels(["I", "B", "B", "M", "E", "E"], fontsize=9)
-    ax.set_yticklabels(["I", "B", "B", "M", "E", "E"], fontsize=9)
+    # One tick at the start of each segment (intro, begin, middle, end), derived from the bin boundaries.
+    ticks = [0, *[boundary for boundary in boundaries if 0 < boundary < n_bins]]
+    tick_labels = ["I", "B", "M", "E"][: len(ticks)]
+    ax.set_xticks(ticks)
+    ax.set_yticks(ticks)
+    ax.set_xticklabels(tick_labels, fontsize=9)
+    ax.set_yticklabels(tick_labels, fontsize=9)
     ax.spines["top"].set_visible(False)
     ax.spines["right"].set_visible(False)
 
@@ -164,6 +167,7 @@ def main() -> None:
     diff_abs = max(diff_abs, 1.5)
 
     fig, axes = plt.subplots(1, 3, figsize=(12.6, 4.2), facecolor="white")
+    fig.suptitle(f"{args.model_label} on {args.story_label}", fontsize=13)
 
     axes[0].imshow(brain_plot, cmap=cmap, vmin=-panel_abs, vmax=panel_abs, interpolation="nearest")
     axes[0].set_title("Brain similarity", fontsize=12)

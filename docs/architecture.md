@@ -32,7 +32,7 @@ flowchart TD
 | `models.py`, `sae.py`, `datasets.py` | Hugging Face model adapter, SAE adapter, and Dolma/transcript document sources |
 | `pipelines/` | Extraction, transcript discovery, Dolma context collection, counterfactual alignment, mock extraction, and summaries |
 | `feature_analysis.py`, `judge.py` | Streaming feature ranking and correlation stages, plus the judge client |
-| `probes/` | Dependency-free schemas, evidence access, the probing agent, and the multi-round runner |
+| `probes/` | Dependency-free schemas and evidence access, plus the probing agent and multi-round runner that need the model stack |
 | `storage.py` | Append-only JSONL artifact store with manifests |
 | `audit_web.py`, `audit_data.py`, `static/` | Threaded HTTP server, view builders, and the HTML/CSS/JS dashboard |
 
@@ -56,7 +56,7 @@ Reuses the feature and ridge contracts for an exploratory SuperGLUE analysis: it
 
 The base installation is lightweight. Model, brain, judge, notebook, and development dependencies are opt-in extras. CLI parsing, configuration validation, mock extraction, artifact storage, and unit tests never need model downloads or private data.
 
-Every input and output resolves through `THESIS_NEURO_DATA_ROOT` and `THESIS_NEURO_OUTPUT_ROOT`, or through explicit path arguments. Credentials are read from an untracked `.env` file and redacted from every configuration snapshot the pipeline writes.
+Every input and output resolves through `THESIS_NEURO_DATA_ROOT` and `THESIS_NEURO_OUTPUT_ROOT`, or through explicit path options where a command exposes them. Credentials are read from an untracked `.env` file and redacted from every configuration snapshot the pipeline writes.
 
 ## Quality Gates
 

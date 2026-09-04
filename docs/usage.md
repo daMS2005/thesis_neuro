@@ -11,7 +11,7 @@ python -m pip install --upgrade pip
 python -m pip install -e ".[dev]"
 ```
 
-Use `python -m pip install -e ".[full]"` for model, fMRI, judge, and notebook dependencies.
+Use `python -m pip install -e ".[full]"` for model, fMRI, judge, notebook, and data-preparation dependencies. `configs/examples/smoke.yaml` is the same one-window run as the mock config but with real Gemma 2 2B weights, for checking a machine end to end.
 
 ## 2. Configure Paths
 
@@ -87,7 +87,7 @@ Build a TR feature bundle from an existing feature run:
 thesis-neuro-structure build-tr-artifacts \
   --feature-run-dir "$THESIS_NEURO_DATA_ROOT/feature-runs/<run-name>" \
   --stimulus-id shapesphysical \
-  --output-dir "$THESIS_NEURO_OUTPUT_ROOT/structure/shapesphysical"
+  --output-dir "$THESIS_NEURO_OUTPUT_ROOT/structure/gemma_2_2b"
 ```
 
 Build cleaned brain targets:
@@ -105,10 +105,10 @@ thesis-neuro-structure run-analysis \
   --feature-run-dir "$THESIS_NEURO_DATA_ROOT/feature-runs/<run-name>" \
   --stimulus-id shapesphysical \
   --brain-targets-npz "$THESIS_NEURO_OUTPUT_ROOT/brain/shapesphysical_schaefer200.npz" \
-  --output-dir "$THESIS_NEURO_OUTPUT_ROOT/structure/shapesphysical"
+  --output-dir "$THESIS_NEURO_OUTPUT_ROOT/structure/gemma_2_2b"
 ```
 
-Analysis variants and figure builders live in `scripts/analysis/`, and `notebooks/model_results_comparison.ipynb` reads the summaries that `run-analysis` writes.
+Analysis variants and figure builders live in `scripts/analysis/`. `notebooks/model_results_comparison.ipynb` discovers every `<output root>/structure/<model>/analysis_summary.json` that `run-analysis` writes and compares them side by side.
 
 ## 7. Audit Dashboard
 

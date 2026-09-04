@@ -10,8 +10,6 @@ from typing import Iterable
 
 from thesis_neuro.paths import data_root
 
-DEFAULT_DATASET_ROOT = data_root() / "openneuro" / "ds002345"
-
 
 def _sorted_relpaths(paths: Iterable[Path], root: Path) -> list[str]:
     return sorted(str(path.relative_to(root)) for path in paths)
@@ -97,8 +95,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--dataset-root",
         type=Path,
-        default=DEFAULT_DATASET_ROOT,
-        help="Root BIDS dataset directory.",
+        default=None,
+        help="Root BIDS dataset directory (default: $THESIS_NEURO_DATA_ROOT/openneuro/ds002345).",
     )
     parser.add_argument(
         "--task",
@@ -125,6 +123,8 @@ def parse_args() -> argparse.Namespace:
 
 def main() -> int:
     args = parse_args()
+    if args.dataset_root is None:
+        args.dataset_root = data_root() / "openneuro" / "ds002345"
     report = build_report(args.dataset_root.resolve(), args.task)
 
     if args.output_json:

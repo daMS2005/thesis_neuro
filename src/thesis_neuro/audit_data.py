@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Any
 
 from thesis_neuro.dashboard_data import DashboardPaths, resolve_dashboard_paths
+from thesis_neuro.paths import DEFAULT_RUN_DIR
 
 
 @dataclass(slots=True)
@@ -27,9 +28,9 @@ class AuditBundle:
 
 def resolve_audit_paths(
     repo_root: str | Path | None = None,
-    analysis_dir: str | Path = "outputs/default-run",
-    transcript_dir: str | Path | None = "outputs/default-run",
-    dolma_dir: str | Path | None = "outputs/default-run",
+    analysis_dir: str | Path = DEFAULT_RUN_DIR,
+    transcript_dir: str | Path | None = DEFAULT_RUN_DIR,
+    dolma_dir: str | Path | None = DEFAULT_RUN_DIR,
 ) -> DashboardPaths:
     return resolve_dashboard_paths(
         repo_root=repo_root,
@@ -340,7 +341,10 @@ def build_focus_features(
                 metrics[key] = value
 
     if mode == "token" and token_position is not None:
-        token = token_details[token_position]
+        token_by_position = {int(item["token_position"]): item for item in token_details if "token_position" in item}
+        token = token_by_position.get(int(token_position))
+        if token is None:
+            raise ValueError(f"Unknown token_position: {token_position}")
         for latent in token.get("latent_activations", []):
             feature_id = int(latent["latent_id"])
             add_metric(
@@ -667,43 +671,9 @@ def build_token_tooltip(
     return "\n".join(lines)
 
 
-def sentence_options(script_view: dict[str, Any], search: str = "") -> list[dict[str, Any]]:
-    options: list[dict[str, Any]] = []
-    needle = search.strip().lower()
-    for window in script_view.get("windows", []):
-        for sentence in window.get("sentences", []):
-            sentence_text = str(sentence.get("sentence_text", ""))
-            if needle and needle not in sentence_text.lower():
-                continue
-            options.append(
-                {
-                    "sample_id": window["sample_id"],
-                    "sentence_id": int(sentence["sentence_id"]),
-                    "label": f"{sentence['sentence_id']} | {_compact_text(sentence_text, 120)}",
-                }
-            )
-    return options
-
-
-def window_options(script_view: dict[str, Any], search: str = "") -> list[dict[str, Any]]:
-    options: list[dict[str, Any]] = []
-    needle = search.strip().lower()
-    for window in script_view.get("windows", []):
-        text = str(window.get("text", ""))
-        if needle and needle not in text.lower():
-            continue
-        options.append(
-            {
-                "sample_id": window["sample_id"],
-                "label": f"{window['window_start']}:{window['window_end']} | {_compact_text(text, 120)}",
-            }
-        )
-    return options
-
-
-def find_script_default(bundle: AuditBundle, preferred_script: str = "shapesphysical") -> dict[str, Any] | None:
+def find_script_default(bundle: AuditBundle, preferred_script: str | None = None) -> dict[str, Any] | None:
     scripts = bundle.scripts
-    if not scripts:
+    if not scripts or not preferred_script:
         return None
     for script in scripts:
         name = str(script.get("script_id", "")).lower()
@@ -711,10 +681,6 @@ def find_script_default(bundle: AuditBundle, preferred_script: str = "shapesphys
         if preferred_script.lower() in name or preferred_script.lower() in stimulus:
             return script
     return scripts[0]
-
-
-def render_token_text(token: str, token_position: int) -> str:
-    return _display_token(token, token_position)
 
 
 def _build_script_feature_row(bundle: AuditBundle, layer: int, row: dict[str, Any]) -> dict[str, Any]:

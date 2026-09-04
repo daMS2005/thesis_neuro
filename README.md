@@ -15,15 +15,15 @@ The follow-up paper submission lives in its own repository: [A Cross-Description
 ## Highlights
 
 - **End-to-end ML and neuroscience pipeline.** Hugging Face model hooks, `sae-lens` SAE encoding, streaming scans of the Dolma corpus, fMRIPrep confound cleaning with `nilearn`, grouped ridge cross-validation, and representational similarity analysis, all behind one installable package.
-- **Three model families on one feature basis.** Gemma 2 2B, Gemma 2 9B, and Llama 3.1 8B, with SAE layers chosen at matched relative depths so results compare across architectures.
-- **Built for constrained hardware.** The analysis stage streams multi-gigabyte JSONL artifacts and resumes from any sub-stage, after earlier versions were killed for memory on a 15 GiB VM. The 9B model loads with a low-memory path on a single 24 GB GPU.
+- **Three models on one feature basis.** Gemma 2 2B, Gemma 2 9B, and Llama 3.1 8B, with SAE layers chosen at matched relative depths so results compare across architectures.
+- **Built for constrained hardware.** Feature analysis works from file-backed JSONL artifacts and can restart from any completed analysis stage with `--from-stage` and `--until-stage`. Models load with `low_cpu_mem_usage` and single-GPU placement, which is what let the 9B checkpoint run on one 24 GB GPU.
 - **LLM-in-the-loop interpretability.** A judge model labels features from collected evidence, and a multi-round probing agent tests hypotheses with synthetic probes, transcript edits, and activation steering, storing every step for audit.
 - **Local audit dashboard.** A dependency-free HTTP server and vanilla JavaScript front end for browsing transcript activations and launching targeted probes.
-- **Engineering hygiene.** Four CLIs with lazy imports, a portable data-root contract, deterministic offline tests, and CI on Python 3.11 and 3.12 with lint, notebook, link, and secret/data-leak checks.
+- **Engineering hygiene.** Four CLIs that defer heavy imports until a command runs, a portable data-root contract, deterministic offline tests, and CI on Python 3.11 and 3.12 with lint, notebook, link, and secret/data-leak checks.
 
 ## Result In Brief
 
-Cleaned `shapesphysical` story, pooled predictors, 48 fMRI runs, 200 cortical parcels, three models:
+Cleaned `shapesphysical` story, pooled all-layers predictor family, 48 fMRI runs, 200 cortical parcels, three models:
 
 | Model | Brain r | Brain R² | LM r | Feature-importance agreement | Sample RSA |
 | --- | ---: | ---: | ---: | ---: | ---: |
@@ -66,7 +66,7 @@ python -m pip install -e ".[dev]"
 make check
 ```
 
-`make check` runs lint, byte-compilation, tests, notebook and link validation, a data-leak scan, and a mock end-to-end extraction. None of it needs data, network access, model weights, or credentials. Install `.[full]` for the model, fMRI, judge, and notebook dependencies, then follow the [Usage Guide](docs/usage.md) for real runs.
+`make check` runs lint, byte-compilation, tests, notebook and link validation, a data-leak scan, a mock extraction smoke run, and benchmark item validation. None of it needs data, network access, model weights, or credentials. Install `.[full]` for the model, fMRI, judge, notebook, and data-preparation dependencies, then follow the [Usage Guide](docs/usage.md) for real runs.
 
 Four commands are installed:
 

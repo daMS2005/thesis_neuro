@@ -763,8 +763,8 @@ const state = {
         : status.has_evidence
         ? "Probe partially collected"
         : "No saved probe run yet";
-      const summary = status.report_summary?.one_sentence_summary
-        ? `<div class="small" style="margin-top:6px;">${escapeHtml(status.report_summary.one_sentence_summary)}</div>`
+      const summary = status.report_summary?.summary
+        ? `<div class="small" style="margin-top:6px;">${escapeHtml(status.report_summary.summary)}</div>`
         : "";
       const actions = `
         <div class="inline-row" style="margin-top:8px;">

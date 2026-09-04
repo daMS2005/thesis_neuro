@@ -1,3 +1,6 @@
+# Minimal real-model run: one 32-token window through Gemma 2 2B and one SAE layer.
+# Needs the `models` extra and cached weights; use it to check a machine end to end.
+# Only the keys below are set; every other section uses the parser defaults.
 model:
   base_model_id: google/gemma-2-2b
   scope_release: gemma-scope-2b-pt-res-canonical

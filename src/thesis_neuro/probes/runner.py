@@ -19,9 +19,9 @@ from thesis_neuro.audit_data import (
 )
 from thesis_neuro.config import AppConfig
 from thesis_neuro.models import GemmaModelAdapter
-from thesis_neuro.paths import output_root
+from thesis_neuro.paths import resolve_output_path
 from thesis_neuro.probes.judge import OpenAIProbingAgent
-from thesis_neuro.probes.schema import ProbeRunPaths
+from thesis_neuro.probes.schema import ProbeRunPaths, ProbeTarget, probe_run_paths, slugify, validate_probe_report
 from thesis_neuro.sae import GemmaScopeAdapter
 
 
@@ -41,7 +41,7 @@ class FeatureProbingPipeline:
         feature_id: int,
         script_id: str | None = None,
         max_rounds: int | None = None,
-        run_steering: bool = False,
+        run_steering: bool | None = None,
         judge_model: str | None = None,
     ) -> None:
         self.config = config
@@ -53,15 +53,15 @@ class FeatureProbingPipeline:
             or config.analysis.alignment_path
             or (self.analysis_dir / "feature_alignment.jsonl")
         )
-        self.layer = int(layer)
-        self.feature_id = int(feature_id)
+        target = ProbeTarget(layer=int(layer), feature_id=int(feature_id), script_id=script_id)
+        self.layer = target.layer
+        self.feature_id = target.feature_id
         self.script_id = script_id
         self.max_rounds = int(max_rounds or config.probing.max_rounds)
-        self.run_steering = bool(run_steering or config.probing.enable_steering)
+        self.run_steering = config.probing.enable_steering if run_steering is None else bool(run_steering)
         self.agent_model = str(judge_model or config.probing.model or config.judge.model)
-        self.bundle_id = self._slugify(self.analysis_dir.name or config.model.base_model_id)
+        self.bundle_id = slugify(self.analysis_dir.name or config.model.base_model_id)
         self.paths = self._build_paths()
-        self.bundle = None
         self.model: GemmaModelAdapter | None = None
         self.sae: GemmaScopeAdapter | None = None
 
@@ -148,6 +148,7 @@ class FeatureProbingPipeline:
             tests=prior_tests,
             steering_rows=prior_steering,
         )
+        validate_probe_report(report)
         self.paths.report_path.write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
 
         manifest = {
@@ -189,17 +190,12 @@ class FeatureProbingPipeline:
             dolma_dir=self.dolma_dir,
         )
         bundle = load_audit_bundle(paths)
-        self.bundle = bundle
         selected_script = (
             next((item for item in bundle.scripts if str(item.get("script_id")) == self.script_id), None)
             if self.script_id
             else None
         )
 
-        detail = {
-            "layer": self.layer,
-            "feature_id": self.feature_id,
-        }
         if selected_script is not None:
             script_id = str(selected_script["script_id"])
             script_view = build_script_audit_view(bundle, script_id=script_id, layer=self.layer)
@@ -654,9 +650,8 @@ class FeatureProbingPipeline:
 
     def score_feature_on_texts(self, texts: list[str]) -> list[dict[str, Any]]:
         rows: list[dict[str, Any]] = []
-        for start in range(0, len(texts), self.config.probing.max_batch_size):
-            for text in texts[start : start + self.config.probing.max_batch_size]:
-                rows.append(self._score_single_text(text))
+        for text in texts:
+            rows.append(self._score_single_text(text))
         return rows
 
     def score_feature_with_counterfactuals(self, original_text: str, edited_text: str) -> tuple[dict[str, Any], dict[str, Any]]:
@@ -761,8 +756,6 @@ class FeatureProbingPipeline:
         token_hits: list[dict[str, Any]] = []
         last_logits = None
         aggregate_feature_totals = None
-        if collect_all_feature_totals:
-            aggregate_feature_totals = None
 
         for window in windows:
             outputs, _ = self.model.forward_outputs(
@@ -892,31 +885,15 @@ class FeatureProbingPipeline:
         self._RUNTIME_CACHE[cache_key] = (self.model, self.sae)
 
     def _build_paths(self) -> ProbeRunPaths:
-        script_segment = self._slugify(self.script_id) if self.script_id else "all_scripts"
-        root = (
-            output_root()
-            / "probe_runs"
-            / self.bundle_id
-            / script_segment
-            / f"layer_{self.layer}"
-            / f"feature_{self.feature_id}"
-        )
-        return ProbeRunPaths(
-            root=root,
-            evidence_path=root / "feature_probe_evidence.json",
-            rounds_path=root / "feature_probe_rounds.jsonl",
-            tests_path=root / "feature_probe_tests.jsonl",
-            steering_path=root / "feature_probe_steering.jsonl",
-            report_path=root / "feature_probe_report.json",
-            manifest_path=root / "manifest.json",
-        )
+        root = resolve_output_path(self.config.probing.output_dir)
+        return probe_run_paths(root, self.bundle_id, self.script_id, self.layer, self.feature_id)
 
     def _stopping_no_gain(self, rounds: list[dict[str, Any]]) -> bool:
         if len(rounds) < 2:
             return False
         latest = float((rounds[-1].get("round_summary") or {}).get("support_score", 0.0))
         previous = float((rounds[-2].get("round_summary") or {}).get("support_score", 0.0))
-        return abs(latest - previous) < 0.05
+        return abs(latest - previous) < self.config.probing.no_gain_threshold
 
     @staticmethod
     def _normalize_synthetic_probes(rows: Any) -> list[dict[str, Any]]:
@@ -962,7 +939,7 @@ class FeatureProbingPipeline:
 
     @staticmethod
     def _normalize_steering_positions(value: Any) -> list[int] | str | None:
-        if value in {None, "all", "last"}:
+        if value is None or value in ("all", "last"):
             return value
         if isinstance(value, list):
             return [int(item) for item in value]
@@ -988,9 +965,11 @@ class FeatureProbingPipeline:
             for row in rows
             if row.get("test_kind") == "synthetic_probe" and row.get("expected_effect") == expected
         ]
-        ordered = sorted(filtered, key=lambda row: float(row.get("feature_total_activation", 0.0)), reverse=True)
-        if expected == "negative":
-            ordered = sorted(filtered, key=lambda row: float(row.get("feature_total_activation", 0.0)))
+        ordered = sorted(
+            filtered,
+            key=lambda row: float(row.get("feature_total_activation", 0.0)),
+            reverse=(expected != "negative"),
+        )
         return [
             {
                 "probe_id": row.get("probe_id"),
@@ -1055,10 +1034,6 @@ class FeatureProbingPipeline:
         if value is None or value == "":
             return []
         return [value]
-
-    @staticmethod
-    def _slugify(value: str) -> str:
-        return re.sub(r"[^a-z0-9]+", "_", value.lower()).strip("_") or "default"
 
     @staticmethod
     def _load_jsonl(path: Path) -> list[dict[str, Any]]:

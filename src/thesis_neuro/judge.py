@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import json
 import random
+import time
 from typing import Any
 
 from openai import APIConnectionError, APITimeoutError, AsyncOpenAI, InternalServerError, OpenAI, RateLimitError
@@ -25,6 +26,36 @@ Return a single JSON object with these keys:
 """
 
 
+
+def extract_json_object(text: str, label: str = "Model") -> dict[str, Any]:
+    """Return the first JSON object in a model response, tolerating code fences and surrounding prose."""
+
+    stripped = text.strip()
+    if stripped.startswith("```"):
+        lines = stripped.splitlines()
+        if len(lines) >= 3:
+            stripped = "\n".join(lines[1:-1]).strip()
+    start = stripped.find("{")
+    end = stripped.rfind("}")
+    if start == -1 or end == -1 or end < start:
+        raise ValueError(f"{label} response did not contain a JSON object.")
+    candidate = stripped[start : end + 1]
+    try:
+        return json.loads(candidate)
+    except json.JSONDecodeError:
+        decoder = json.JSONDecoder()
+        for offset in range(start, len(stripped)):
+            if stripped[offset] != "{":
+                continue
+            try:
+                parsed, _ = decoder.raw_decode(stripped[offset:])
+            except json.JSONDecodeError:
+                continue
+            if isinstance(parsed, dict):
+                return parsed
+        raise
+
+
 class OpenAIJudge:
     def __init__(self, api_key: str, model: str, timeout_seconds: float = 60.0, max_retries: int = 2) -> None:
         self.client = OpenAI(
@@ -39,7 +70,7 @@ class OpenAIJudge:
     def judge_feature(self, evidence: dict[str, Any]) -> dict[str, Any]:
         response = self._create_response_with_backoff(evidence)
         output_text = response.output_text.strip()
-        payload = self._extract_json(output_text)
+        payload = extract_json_object(output_text, label="Judge")
         payload["judge_model"] = self.model
         payload["raw_response_text"] = output_text
         return payload
@@ -72,22 +103,9 @@ class OpenAIJudge:
     @staticmethod
     def _sleep_backoff(attempt: int) -> None:
         delay = min(90.0, 4.0 * (2**attempt) + random.uniform(0.0, 1.5))
-        import time
 
         time.sleep(delay)
 
-    def _extract_json(self, text: str) -> dict[str, Any]:
-        stripped = text.strip()
-        if stripped.startswith("```"):
-            lines = stripped.splitlines()
-            if len(lines) >= 3:
-                stripped = "\n".join(lines[1:-1]).strip()
-
-        start = stripped.find("{")
-        end = stripped.rfind("}")
-        if start == -1 or end == -1 or end < start:
-            raise ValueError("Judge response did not contain a JSON object.")
-        return json.loads(stripped[start : end + 1])
 
 
 class AsyncOpenAIJudge:
@@ -104,7 +122,7 @@ class AsyncOpenAIJudge:
     async def judge_feature(self, evidence: dict[str, Any]) -> dict[str, Any]:
         response = await self._create_response_with_backoff(evidence)
         output_text = response.output_text.strip()
-        payload = self._extract_json(output_text)
+        payload = extract_json_object(output_text, label="Judge")
         payload["judge_model"] = self.model
         payload["raw_response_text"] = output_text
         return payload
@@ -137,15 +155,3 @@ class AsyncOpenAIJudge:
                 delay = min(90.0, 4.0 * (2**attempt) + random.uniform(0.0, 1.5))
                 await asyncio.sleep(delay)
 
-    def _extract_json(self, text: str) -> dict[str, Any]:
-        stripped = text.strip()
-        if stripped.startswith("```"):
-            lines = stripped.splitlines()
-            if len(lines) >= 3:
-                stripped = "\n".join(lines[1:-1]).strip()
-
-        start = stripped.find("{")
-        end = stripped.rfind("}")
-        if start == -1 or end == -1 or end < start:
-            raise ValueError("Judge response did not contain a JSON object.")
-        return json.loads(stripped[start : end + 1])

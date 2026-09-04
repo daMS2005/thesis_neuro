@@ -1,6 +1,6 @@
 # Methods And Results
 
-A compact description of what the pipeline measures and what it found. Numbers come from the thesis analyses; regenerating them needs the external inputs listed in [Data Contracts](data-contracts.md).
+A compact description of what the pipeline measures and what it found. The numbers are the ones reported in the thesis; the code here produced them, but the fMRI data, model weights, and generated outputs live outside the repository, as described in [Data Contracts](data-contracts.md).
 
 ## Question
 
@@ -17,13 +17,13 @@ Do a language model and a human brain rely on the same interpretable features wh
 
 ## Pipeline
 
-1. **Transcript-first feature discovery.** Each transcript is windowed to the model's context length, passed through the model, and encoded by the SAE at the selected layers. Features are ranked by peak activation, total activation, persistence across windows, and sentence-pooled activation, then shortlisted per layer.
+1. **Transcript-first feature discovery.** Each transcript is chunked into fixed-length token windows (`tokenization.seq_len`, 512 in the full-extraction config), passed through the model, and encoded by the SAE at the selected layers. Features are ranked by peak activation, total activation, persistence across windows, and sentence-pooled activation, then shortlisted per layer.
 2. **External contexts and labels.** Dolma is streamed once for the shortlisted features, keeping the highest-activating token, span, sentence, and document snippets. A judge model turns the transcript and Dolma evidence into a concept label with supporting and opposing evidence and an uncertainty note.
 3. **Localization and probing.** Counterfactual edits (token deletion, sentence masking, clause deletion) measure where each feature is grounded in the text. A multi-round probing agent can then test a hypothesis with synthetic probes, real transcript edits, and activation steering, writing evidence, tests, and a report with a confidence in [0, 1].
-4. **TR-level predictors.** Tokens are regrouped into words with the model's own tokenizer, words are assigned to repetition-time (TR) bins by midpoint after the stimulus onset offset, and per-feature activations are averaged within each TR. The retained predictor bank is the top 128 transcript-ranked features.
+4. **TR-level predictors.** Tokens are regrouped into words with the model's own tokenizer, words are assigned to repetition-time (TR) bins by midpoint after the stimulus onset offset, and per-feature activations are aggregated within each TR. The reported results use the per-TR average view (`scripts/analysis/run_average_all_layers.py`); `run-analysis --predictor-view` selects mass, presence, or average. The predictor bank is the feature shortlist written by the selection stage: 128 features per model in the rendered run configs (`scripts/analysis/render_run_config.py`), narrowed further only when `--predictor-top-k` is given.
 5. **Brain targets.** Parcel time series are extracted from fMRIPrep outputs without smoothing or filtering, then cleaned with a 24-parameter motion model, six aCompCor components, detrending, and a 0.008 Hz high-pass filter. TRs with framewise displacement above 0.5 mm, standardized DVARS above 1.5, or non-steady-state flags are censored at fit time. Series are z-scored within run on uncensored TRs.
 6. **Matched ridge models.** The brain model receives the predictors expanded with lags of 0 to 4 TRs and is evaluated with leave-one-run-out cross-validation. The language-model analog uses the same predictors without lags against held-out targets from the same model (SAE features not in the predictor set, or the final hidden state) with blocked five-fold cross-validation. Both use ridge regression with inner-loop alpha selection over five penalties.
-7. **Comparison.** Held-out Pearson r and R² per target; cosine similarity between lag-collapsed brain weights and LM weights; Pearson correlation between the two systems' feature-importance vectors (L2 norm of each predictor's weights); and sample-level representational similarity analysis (RSA) between predicted brain and LM responses.
+7. **Comparison.** Held-out Pearson r and R² per target; cosine similarity between lag-collapsed brain weights and LM weights; Pearson correlation between the two systems' feature-importance vectors (L2 norm of each predictor's weights); and sample-level representational similarity analysis (RSA): cosine-similarity matrices of predicted brain and LM responses, compared by Pearson correlation over their upper triangles.
 
 ## Results
 
@@ -37,7 +37,7 @@ Do a language model and a human brain rely on the same interpretable features wh
 | Gemma 2 9B | 0.1693 | 0.0339 | 0.5659 | 0.2022 | 0.0185 | 0.9610 |
 | Llama 3.1 8B | 0.1699 | 0.0350 | 0.6217 | 0.3925 | 0.0500 | 0.9086 |
 
-The Gemma 2 2B row uses a final-hidden-state target; the other two rows use the closest available hidden-state-style presentation.
+The Gemma 2 2B row was rerun with a final-hidden-state LM target. The Gemma 2 9B and Llama 3.1 8B rows report the held-out SAE-feature target runs; their final-hidden-state variants had not been rerun when the thesis was written.
 
 **Aggregation matters.** For Gemma 2 2B, switching from summed activation mass to per-TR averages moved LM R² from -0.79 to a positive value without changing the brain fit, and switching the LM target to the final hidden state raised both RSA and feature-importance agreement.
 
@@ -55,5 +55,8 @@ The Gemma 2 2B row uses a final-hidden-state target; the other two rows use the 
 - Ridge prediction and RSA are associational. They do not establish that a feature causally controls a model or a brain response.
 - Hemodynamic lag is handled with explicit lagged design matrices, not estimated per feature.
 - Judge labels and probe reports can inherit language-model errors.
-- The cleaned analysis covers 48 of 59 runs, so its numbers are interim.
+- The cleaned analysis covers 48 of 59 runs; the remaining runs had not finished preprocessing when the analyses were run.
+- Brain cross-validation holds out one recording (subject and run) at a time. Every recording of a stimulus shares the same predictor time series, so the held-out scores measure generalization to new recordings of the same story, not to unseen story time points.
+- Weight similarity and RSA are computed from the final models' in-sample predictions, so they describe fitted structure rather than held-out geometry.
+- The first lags of each recording are zero-padded rather than dropped, so the earliest TRs carry partial lag information.
 - The strong somatomotor component means stimulus-locked, lower-level structure still contributes to the fit.
