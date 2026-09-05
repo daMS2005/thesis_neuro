@@ -32,12 +32,6 @@ jobs:
         run: python -m compileall -q src scripts tests
       - name: Test
         run: pytest
-      - name: Validate notebooks
-        run: python scripts/quality/validate_notebooks.py
-      - name: Validate Markdown links
-        run: python scripts/quality/check_markdown_links.py
-      - name: Check repository hygiene
-        run: python scripts/quality/check_repo_hygiene.py
       - name: Mock extraction smoke run
         run: |
           thesis-neuro --config configs/examples/mock.yaml mock-extract

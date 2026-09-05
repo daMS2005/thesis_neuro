@@ -49,9 +49,6 @@ Or individually:
 ruff check src scripts tests
 python -m compileall -q src scripts tests
 pytest
-python scripts/quality/validate_notebooks.py
-python scripts/quality/check_markdown_links.py
-python scripts/quality/check_repo_hygiene.py
 thesis-neuro --config configs/examples/mock.yaml mock-extract
 thesis-neuro-benchmark validate-items --items-path examples/benchmark/mock_boolq.jsonl
 ```
